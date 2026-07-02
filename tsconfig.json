@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@@/*": ["./*"]
+    }
+  },
+  "include": [
+    "entrypoints/**/*",
+    "lib/**/*",
+    "tests/**/*",
+    "wxt.config.ts",
+    "tailwind.config.ts",
+    ".wxt/types/**/*"
+  ],
+  "exclude": ["node_modules", ".output", ".wxt/types/global.d.ts"]
+}

@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: #0f1117;
+  color: #e2e8f0;
+  min-width: 380px;
+  max-width: 420px;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
+
+/* ── Custom textarea ───────────────────────────────────────────────────── */
+.prompt-textarea {
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.prompt-textarea:focus {
+  border-color: #4f6ef7;
+  box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.2);
+}
+
+/* ── Status badges ─────────────────────────────────────────────────────── */
+.badge-success {
+  @apply bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full font-medium;
+}
+.badge-error {
+  @apply bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium;
+}
+.badge-pending {
+  @apply bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full font-medium;
+}
