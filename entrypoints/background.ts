@@ -2,25 +2,14 @@
  * entrypoints/background.ts
  *
  * MV3 Service Worker — the orchestrator.
- *
- * Responsibilities:
- *  1. Listen for SEND_PROMPT from the popup.
- *  2. For each target site:
- *       a. Find an existing tab or open a new one.
- *       b. Wait for the content script's CONTENT_SCRIPT_READY handshake.
- *       c. Send INJECT_PROMPT to the tab's content script.
- *       d. Collect INJECT_RESULT per tab.
- *  3. Write the prompt to history (chrome.storage.local).
- *  4. Return a SendPromptResponse to the popup.
- *
- * No network calls. No external APIs. Pure in-browser message routing.
  */
 
-import type { ExtensionMessage, SendPromptResponse, SiteId } from "@@/lib/messaging";
+import type { ExtensionMessage, SendPromptResponse, SiteId, SiteResult } from "@@/lib/messaging";
 import { addHistoryEntry } from "@@/lib/history";
+import { getSettings } from "@@/lib/storage";
 
 // ─────────────────────────────────────────────
-// Site URL patterns (used for tab.query + tab.create)
+// Site URL patterns
 // ─────────────────────────────────────────────
 
 const SITE_URLS: Record<SiteId, string> = {
@@ -35,91 +24,134 @@ const SITE_URL_PATTERNS: Record<SiteId, string> = {
   gemini: "https://gemini.google.com/*",
 };
 
-// ─────────────────────────────────────────────
-// Background Script
-// ─────────────────────────────────────────────
+// State
+let currentGroupId: number | undefined;
 
 export default defineBackground(() => {
-  // ── Handle SEND_PROMPT from popup ──────────────────────────────────────────
+  // ── Open Options on Icon Click ───────────────────────────────────────────
+  chrome.action.onClicked.addListener(() => {
+    void chrome.runtime.openOptionsPage();
+  });
+
+  // ── Handle Messages ──────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener(
-    (message: unknown, _sender, sendResponse) => {
+    (message: unknown, sender, sendResponse) => {
       const msg = message as ExtensionMessage;
       if (msg.type !== "SEND_PROMPT") return false;
 
       void (async () => {
-        // Persist to history before attempting injection (best-effort)
+        const settings = await getSettings();
+
+        // 1. Open Side Panel if not follow-up
+        if (!msg.isFollowUp && sender.tab?.windowId) {
+          try {
+            await chrome.sidePanel.open({ windowId: sender.tab.windowId });
+          } catch (e) {
+            console.error("Failed to open side panel:", e);
+          }
+        }
+
+        // 2. Persist to history
         try {
           await addHistoryEntry(msg.prompt, msg.targets);
         } catch (e) {
           console.warn("[PromptSync] Failed to save history entry:", e);
         }
 
-        // Inject into each target site in parallel
-        const results = await Promise.all(
-          msg.targets.map((siteId) =>
-            injectIntoSite(siteId, msg.prompt, msg.autoSubmit),
-          ),
-        );
+        const results: SiteResult[] = msg.targets.map(id => ({ siteId: id, status: "pending" }));
+        const notifyProgress = () => {
+          void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results } as ExtensionMessage);
+        };
+
+        notifyProgress();
+
+        const tabIds: number[] = [];
+
+        // 3. Process sequentially
+        for (const siteId of msg.targets) {
+          const resultRef = results.find(r => r.siteId === siteId)!;
+          try {
+            // Find or open tab
+            const tab = await findOrOpenTab(siteId, settings.useNewTabs, msg.isFollowUp);
+            if (tab.id) {
+              tabIds.push(tab.id);
+              await chrome.tabs.update(tab.id, { active: true });
+              
+              // Wait for readiness
+              const ready = await waitForContentScript(tab.id);
+              if (!ready) {
+                resultRef.status = "error";
+                resultRef.error = "Content script not found. Please refresh.";
+              } else {
+                // Send prompt
+                const injectResult = await sendMessageWithRetry(tab.id, {
+                  type: "INJECT_PROMPT",
+                  prompt: msg.prompt,
+                  autoSubmit: msg.autoSubmit,
+                });
+
+                if (injectResult && typeof injectResult === "object" && "type" in injectResult && injectResult.type === "INJECT_RESULT") {
+                  const r = injectResult as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
+                  resultRef.status = r.success ? "success" : "error";
+                  resultRef.error = r.error;
+                } else {
+                  resultRef.status = "error";
+                  resultRef.error = "Unexpected response from content script";
+                }
+              }
+            } else {
+              resultRef.status = "error";
+              resultRef.error = "Failed to create or find tab";
+            }
+          } catch (e) {
+            resultRef.status = "error";
+            resultRef.error = e instanceof Error ? e.message : String(e);
+          }
+          
+          notifyProgress();
+        }
+
+        // 4. Group Tabs
+        if (tabIds.length > 0) {
+          try {
+            if (msg.isFollowUp && currentGroupId) {
+              // Ensure they are in the group
+              await chrome.tabs.group({ tabIds, groupId: currentGroupId });
+            } else {
+              currentGroupId = await chrome.tabs.group({ tabIds });
+              await chrome.tabGroups.update(currentGroupId, { title: "PromptSync", color: "blue" });
+            }
+          } catch (e) {
+            console.warn("Failed to group tabs:", e);
+          }
+        }
 
         const response: SendPromptResponse = { results };
         sendResponse(response);
       })();
 
-      return true; // Keep message channel open for async response
+      return true; // Keep message channel open
     },
   );
 });
 
 // ─────────────────────────────────────────────
-// Per-site injection logic
-// ─────────────────────────────────────────────
-
-async function injectIntoSite(
-  siteId: SiteId,
-  prompt: string,
-  autoSubmit: boolean,
-): Promise<SendPromptResponse["results"][number]> {
-  try {
-    const tab = await findOrOpenTab(siteId);
-
-    // Focus the tab (chrome.windows requires extra permission, so we skip window focus)
-    await chrome.tabs.update(tab.id!, { active: true });
-
-    // Wait for content script readiness (with retry/backoff)
-    const ready = await waitForContentScript(tab.id!);
-    if (!ready) {
-      return { siteId, success: false, error: "Content script not found. Please refresh this tab." };
-    }
-
-    // Send INJECT_PROMPT to the tab's content script
-    const result = await sendMessageWithRetry(tab.id!, {
-      type: "INJECT_PROMPT",
-      prompt,
-      autoSubmit,
-    });
-
-    if (result !== null && typeof result === "object" && "type" in result && result.type === "INJECT_RESULT") {
-      const r = result as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
-      return { siteId, success: r.success, error: r.error };
-    }
-
-    return { siteId, success: false, error: "Unexpected response from content script" };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    console.error(`[PromptSync] Failed to inject into ${siteId}:`, error);
-    return { siteId, success: false, error };
-  }
-}
-
-// ─────────────────────────────────────────────
 // Tab management
 // ─────────────────────────────────────────────
 
-async function findOrOpenTab(siteId: SiteId): Promise<chrome.tabs.Tab> {
-  // Look for an existing tab matching the site's URL pattern
-  const [existing] = await chrome.tabs.query({ url: SITE_URL_PATTERNS[siteId] });
-  if (existing?.id !== undefined) {
-    return existing;
+async function findOrOpenTab(siteId: SiteId, useNewTabs: boolean, isFollowUp: boolean): Promise<chrome.tabs.Tab> {
+  if (!useNewTabs || isFollowUp) {
+    const existing = await chrome.tabs.query({ url: SITE_URL_PATTERNS[siteId] });
+    
+    // If follow up, prefer tabs in current group
+    if (isFollowUp && currentGroupId) {
+      const groupedTab = existing.find(t => t.groupId === currentGroupId);
+      if (groupedTab) return groupedTab;
+    }
+    
+    if (existing[0]?.id !== undefined) {
+      return existing[0];
+    }
   }
 
   // Open a new tab
@@ -131,9 +163,6 @@ async function findOrOpenTab(siteId: SiteId): Promise<chrome.tabs.Tab> {
 // Content script readiness
 // ─────────────────────────────────────────────
 
-/**
- * Polls the content script with PING messages until it responds with PONG.
- */
 async function waitForContentScript(
   tabId: number,
   timeoutMs = 15_000,
@@ -143,13 +172,12 @@ async function waitForContentScript(
   
   while (Date.now() < deadline) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       const res = await chrome.tabs.sendMessage(tabId, { type: "PING" }) as ExtensionMessage;
       if (res && res.type === "PONG") {
         return true;
       }
     } catch (e) {
-      // Ignore "Could not establish connection" while the page is loading
+      // Ignore
     }
     await delay(pollMs);
   }
@@ -160,11 +188,6 @@ async function waitForContentScript(
 // Message sending with retry
 // ─────────────────────────────────────────────
 
-/**
- * Send a message to a tab's content script, retrying up to 3 times
- * with 500ms backoff. Handles the case where the content script isn't
- * ready yet when the first message arrives.
- */
 async function sendMessageWithRetry(
   tabId: number,
   message: ExtensionMessage,
@@ -173,11 +196,9 @@ async function sendMessageWithRetry(
 ): Promise<unknown> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return await chrome.tabs.sendMessage(tabId, message);
     } catch (e) {
       if (attempt === maxAttempts) throw e;
-      console.warn(`[PromptSync] sendMessage attempt ${attempt} failed, retrying in ${backoffMs}ms...`);
       await delay(backoffMs * attempt);
     }
   }

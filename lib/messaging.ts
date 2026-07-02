@@ -9,13 +9,22 @@
 /** The three site IDs supported by PromptSync v1. */
 export type SiteId = "chatgpt" | "claude" | "gemini";
 
+export type SiteStatus = "idle" | "pending" | "success" | "error";
+
+export interface SiteResult {
+  siteId: SiteId;
+  status: SiteStatus;
+  error?: string;
+}
+
 /**
  * Discriminated union of all messages in the system.
  *
- * SEND_PROMPT        popup → background
+ * SEND_PROMPT        popup/options/sidepanel → background
  * INJECT_PROMPT      background → content script
  * CONTENT_SCRIPT_READY  content script → background (handshake on load)
  * INJECT_RESULT      content script → background (result of injection)
+ * PROGRESS_UPDATE    background → sidepanel
  */
 export type ExtensionMessage =
   | {
@@ -23,6 +32,7 @@ export type ExtensionMessage =
       prompt: string;
       targets: SiteId[];
       autoSubmit: boolean;
+      isFollowUp: boolean;
     }
   | {
       type: "INJECT_PROMPT";
@@ -39,24 +49,22 @@ export type ExtensionMessage =
       success: boolean;
       error?: string;
     }
+  | {
+      type: "PROGRESS_UPDATE";
+      results: SiteResult[];
+    }
   | { type: "PING" }
   | { type: "PONG" };
 
 /**
- * Response shape the background sends back to the popup after a SEND_PROMPT.
+ * Response shape the background sends back after a SEND_PROMPT.
  */
 export interface SendPromptResponse {
-  results: Array<{
-    siteId: SiteId;
-    success: boolean;
-    error?: string;
-  }>;
+  results: SiteResult[];
 }
 
 /**
- * Type-safe wrapper for chrome.runtime.sendMessage (popup → background).
- * Chrome's types don't provide generic overloads on sendMessage,
- * so we cast the Promise return value instead.
+ * Type-safe wrapper for chrome.runtime.sendMessage (popup/options → background).
  */
 export function sendToBackground(
   message: Extract<ExtensionMessage, { type: "SEND_PROMPT" }>,

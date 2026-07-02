@@ -43,6 +43,40 @@ export function SettingsPanel({ settings, onUpdate }: Props) {
           />
         </div>
       </label>
+
+      {/* Use new tabs toggle */}
+      <label
+        htmlFor="toggle-usenewtabs"
+        className="flex items-center justify-between cursor-pointer group mt-2"
+      >
+        <div>
+          <p className="text-sm text-slate-300 font-medium">Tab Behavior</p>
+          <p className="text-xs text-slate-500">
+            {settings.useNewTabs
+              ? "Always open AIs in new tabs"
+              : "Use existing tabs if available"}
+          </p>
+        </div>
+        <div className="relative ml-4 shrink-0">
+          <input
+            type="checkbox"
+            id="toggle-usenewtabs"
+            className="sr-only"
+            checked={settings.useNewTabs}
+            onChange={(e) => { onUpdate({ useNewTabs: e.target.checked }); }}
+          />
+          <div
+            className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+              settings.useNewTabs ? "bg-brand-500" : "bg-slate-700"
+            }`}
+          />
+          <div
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+              settings.useNewTabs ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </div>
+      </label>
     </div>
   );
 }

@@ -26,6 +26,7 @@ export interface PromptHistoryEntry {
 export interface Settings {
   defaultTargets: SiteId[];
   autoSubmit: boolean;
+  useNewTabs: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -35,6 +36,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   defaultTargets: ["chatgpt", "claude", "gemini"],
   autoSubmit: true,
+  useNewTabs: false,
 };
 
 export const HISTORY_CAP = 50;

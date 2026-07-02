@@ -13,25 +13,24 @@ body {
   font-family: "Inter", system-ui, sans-serif;
   background: #0f1117;
   color: #e2e8f0;
-  min-width: 380px;
-  max-width: 420px;
+  min-height: 100vh;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #334155;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 /* ── Custom textarea ───────────────────────────────────────────────────── */
 .prompt-textarea {
-  resize: none;
+  resize: vertical;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
