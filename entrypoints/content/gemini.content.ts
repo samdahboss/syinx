@@ -3,17 +3,9 @@
  *
  * Content script for gemini.google.com
  *
- * Strategy: Gemini supports URL parameters (?q=prompt) which is more reliable
- * than DOM injection for this Angular-based site.
- *
- * When a INJECT_PROMPT message arrives:
- *   1. If the current URL is already /app (tab was already open at /app),
- *      we try DOM injection via geminiAdapter.
- *   2. If the tab was freshly opened to /app, the URL param was already set
- *      by the background (via SITE_URLS), so we just ensure the input gets filled.
- *
- * For autoSubmit=false: we pre-fill only, no submit.
- * For autoSubmit=true: we allow the page's natural submit behavior.
+ * Strategy:
+ *  - autoSubmit=true  → navigate to ?q=<encoded_prompt> (URL param, most stable)
+ *  - autoSubmit=false → DOM injection (pre-fill without submitting)
  */
 
 import type { ExtensionMessage } from "@@/lib/messaging";
@@ -25,13 +17,17 @@ export default defineContentScript({
 
   main() {
     // Announce readiness
-    chrome.runtime.sendMessage({
+    void chrome.runtime.sendMessage({
       type: "CONTENT_SCRIPT_READY",
       siteId: "gemini",
     } satisfies ExtensionMessage);
 
     chrome.runtime.onMessage.addListener(
-      (message: unknown, _sender, sendResponse) => {
+      (
+        message: unknown,
+        _sender: chrome.runtime.MessageSender,
+        sendResponse: (response: ExtensionMessage) => void,
+      ) => {
         const msg = message as ExtensionMessage;
         if (msg.type !== "INJECT_PROMPT") return false;
 
@@ -40,21 +36,16 @@ export default defineContentScript({
           let error: string | undefined;
 
           try {
-            // Try URL param approach first (most stable for Gemini)
-            const encodedPrompt = encodeURIComponent(msg.prompt);
-            const targetUrl = `https://gemini.google.com/app?q=${encodedPrompt}`;
-
             if (msg.autoSubmit) {
-              // Navigate to the URL — Gemini will auto-submit the prompt
-              window.location.href = targetUrl;
-              // Wait briefly for navigation to kick off
+              // URL param approach — most stable for Gemini (officially supported)
+              const encodedPrompt = encodeURIComponent(msg.prompt);
+              window.location.href = `https://gemini.google.com/app?q=${encodedPrompt}`;
               await delay(500);
               success = true;
             } else {
-              // Pre-fill only: use DOM injection so user reviews before sending
+              // Pre-fill only: DOM injection so user can review before sending
               const el = await waitForElement(() => geminiAdapter.findInputElement(), 5000);
               if (!el) throw new Error("Could not find Gemini input element after waiting 5s");
-
               geminiAdapter.insertPrompt(el, msg.prompt);
               success = true;
             }
@@ -68,7 +59,7 @@ export default defineContentScript({
             siteId: "gemini",
             success,
             error,
-          } satisfies ExtensionMessage);
+          });
         })();
 
         return true;

@@ -13,13 +13,17 @@ export default defineContentScript({
 
   main() {
     // Announce readiness
-    chrome.runtime.sendMessage({
+    void chrome.runtime.sendMessage({
       type: "CONTENT_SCRIPT_READY",
       siteId: "claude",
     } satisfies ExtensionMessage);
 
     chrome.runtime.onMessage.addListener(
-      (message: unknown, _sender, sendResponse) => {
+      (
+        message: unknown,
+        _sender: chrome.runtime.MessageSender,
+        sendResponse: (response: ExtensionMessage) => void,
+      ) => {
         const msg = message as ExtensionMessage;
         if (msg.type !== "INJECT_PROMPT") return false;
 
@@ -49,7 +53,7 @@ export default defineContentScript({
             siteId: "claude",
             success,
             error,
-          } satisfies ExtensionMessage);
+          });
         })();
 
         return true;

@@ -64,9 +64,10 @@ export const chatgptAdapter: SiteAdapter = {
     // Clear any existing content
     el.textContent = "";
 
-    // Strategy 1: execCommand (deprecated but still works in most browsers for contenteditable)
-    // This is the most reliable way to trigger React's synthetic event system.
-    const inserted = document.execCommand("insertText", false, prompt);
+    // Strategy 1: execCommand (deprecated but still the most reliable for contenteditable + React)
+    // We use a type assertion to silence the TS deprecation warning.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inserted: boolean = (document as any).execCommand("insertText", false, prompt) as boolean;
 
     if (!inserted) {
       // Strategy 2: Manually set textContent + dispatch InputEvent

@@ -104,27 +104,25 @@ async function injectIntoSite(
   try {
     const tab = await findOrOpenTab(siteId);
 
-    // Focus the tab
+    // Focus the tab (chrome.windows requires extra permission, so we skip window focus)
     await chrome.tabs.update(tab.id!, { active: true });
-    if (tab.windowId) {
-      await chrome.windows.update(tab.windowId, { focused: true });
-    }
 
     // Wait for content script readiness (with retry/backoff)
-    const ready = await waitForContentScript(tab.id!, siteId);
+    const ready = await waitForContentScript(tab.id!);
     if (!ready) {
       return { siteId, success: false, error: "Content script did not become ready in time" };
     }
 
     // Send INJECT_PROMPT to the tab's content script
-    const result = await sendMessageWithRetry<ExtensionMessage>(tab.id!, {
+    const result = await sendMessageWithRetry(tab.id!, {
       type: "INJECT_PROMPT",
       prompt,
       autoSubmit,
     });
 
-    if (result?.type === "INJECT_RESULT") {
-      return { siteId, success: result.success, error: result.error };
+    if (result !== null && typeof result === "object" && "type" in result && result.type === "INJECT_RESULT") {
+      const r = result as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
+      return { siteId, success: r.success, error: r.error };
     }
 
     return { siteId, success: false, error: "Unexpected response from content script" };
@@ -178,7 +176,6 @@ function waitForTabLoad(tabId: number): Promise<void> {
  */
 async function waitForContentScript(
   tabId: number,
-  _siteId: SiteId,
   timeoutMs = 10_000,
   pollMs = 250,
 ): Promise<boolean> {
@@ -201,16 +198,16 @@ async function waitForContentScript(
  * with 500ms backoff. Handles the case where the content script isn't
  * ready yet when the first message arrives.
  */
-async function sendMessageWithRetry<T>(
+async function sendMessageWithRetry(
   tabId: number,
   message: ExtensionMessage,
   maxAttempts = 3,
   backoffMs = 500,
-): Promise<T | null> {
+): Promise<unknown> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = await chrome.tabs.sendMessage<ExtensionMessage, T>(tabId, message);
-      return response;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return await chrome.tabs.sendMessage(tabId, message);
     } catch (e) {
       if (attempt === maxAttempts) throw e;
       console.warn(`[PromptSync] sendMessage attempt ${attempt} failed, retrying in ${backoffMs}ms...`);

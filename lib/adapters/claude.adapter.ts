@@ -53,7 +53,8 @@ export const claudeAdapter: SiteAdapter = {
     el.textContent = "";
 
     // Strategy 1: execCommand
-    const inserted = document.execCommand("insertText", false, prompt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inserted: boolean = (document as any).execCommand("insertText", false, prompt) as boolean;
 
     if (!inserted) {
       // Strategy 2: set content + dispatch InputEvent

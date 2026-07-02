@@ -18,14 +18,19 @@ export default defineContentScript({
 
   main() {
     // ── 1. Announce readiness ──────────────────────────────────────────────
-    chrome.runtime.sendMessage({
+    // Fire-and-forget: background listens but doesn't respond to CONTENT_SCRIPT_READY
+    void chrome.runtime.sendMessage({
       type: "CONTENT_SCRIPT_READY",
       siteId: "chatgpt",
     } satisfies ExtensionMessage);
 
     // ── 2. Listen for INJECT_PROMPT ────────────────────────────────────────
     chrome.runtime.onMessage.addListener(
-      (message: unknown, _sender, sendResponse) => {
+      (
+        message: unknown,
+        _sender: chrome.runtime.MessageSender,
+        sendResponse: (response: ExtensionMessage) => void,
+      ) => {
         const msg = message as ExtensionMessage;
         if (msg.type !== "INJECT_PROMPT") return false;
 
@@ -55,7 +60,12 @@ export default defineContentScript({
             console.error("[PromptSync] ChatGPT injection failed:", error);
           }
 
-          sendResponse({ type: "INJECT_RESULT", siteId: "chatgpt", success, error } satisfies ExtensionMessage);
+          sendResponse({
+            type: "INJECT_RESULT",
+            siteId: "chatgpt",
+            success,
+            error,
+          });
         })();
 
         // Return true to keep the message channel open for the async response

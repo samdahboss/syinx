@@ -53,9 +53,12 @@ export interface SendPromptResponse {
 
 /**
  * Type-safe wrapper for chrome.runtime.sendMessage (popup → background).
+ * Chrome's types don't provide generic overloads on sendMessage,
+ * so we cast the Promise return value instead.
  */
 export function sendToBackground(
   message: Extract<ExtensionMessage, { type: "SEND_PROMPT" }>,
 ): Promise<SendPromptResponse> {
-  return chrome.runtime.sendMessage<ExtensionMessage, SendPromptResponse>(message);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return chrome.runtime.sendMessage(message) as Promise<SendPromptResponse>;
 }
