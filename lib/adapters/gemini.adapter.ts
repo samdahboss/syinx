@@ -37,7 +37,7 @@ const SEL_INPUT = `${SEL_RICH_TEXTAREA} div[contenteditable="true"]`;
 const SEL_INPUT_FALLBACK = 'div[contenteditable="true"]';
 
 /** Send button aria-label */
-const SEL_SEND_BUTTON = 'button[aria-label="Send message"]';
+const SEL_SEND_BUTTON = 'button[aria-label*="Send"]';
 
 /** Fallback: mat-icon-button with a send icon near the input */
 const SEL_SEND_BUTTON_FALLBACK = 'button.send-button';
@@ -62,34 +62,41 @@ export const geminiAdapter: SiteAdapter = {
 
   insertPrompt(el: HTMLElement, prompt: string): void {
     el.focus();
-    el.textContent = "";
 
-    // Strategy 1: execCommand
+    // Select all existing content so the paste overwrites it
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inserted: boolean = (document as any).execCommand("insertText", false, prompt) as boolean;
+    (document as any).execCommand("selectAll", false, null);
 
-    if (!inserted) {
-      el.textContent = prompt;
+    // Modern SPAs (Angular) break if you manually modify textContent.
+    // The most robust way to inject text is to simulate a paste event.
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData("text/plain", prompt);
+    const pasteEvent = new ClipboardEvent("paste", {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+    });
 
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+    const handled = el.dispatchEvent(pasteEvent);
 
-      el.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          cancelable: true,
-          inputType: "insertText",
-          data: prompt,
-        }),
-      );
-      // Angular needs a 'keyup' event to register input changes
-      el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
+    // If the site didn't natively handle the paste event (preventDefault), fallback
+    if (handled) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inserted = (document as any).execCommand("insertText", false, prompt) as boolean;
+      if (!inserted) {
+        el.textContent = prompt;
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: prompt }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
+
+    // Collapse selection to end
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   },
 
   submit(el: HTMLElement): void {

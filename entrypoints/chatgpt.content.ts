@@ -1,5 +1,5 @@
 /**
- * entrypoints/content/chatgpt.content.ts
+ * entrypoints/chatgpt.content.ts
  *
  * Content script for chatgpt.com — injected automatically via manifest match patterns.
  *
@@ -17,12 +17,8 @@ export default defineContentScript({
   runAt: "document_idle",
 
   main() {
-    // ── 1. Announce readiness ──────────────────────────────────────────────
-    // Fire-and-forget: background listens but doesn't respond to CONTENT_SCRIPT_READY
-    void chrome.runtime.sendMessage({
-      type: "CONTENT_SCRIPT_READY",
-      siteId: "chatgpt",
-    } satisfies ExtensionMessage);
+    // We use a stateless polling model from the background script now.
+    // The background will ping us until we respond.
 
     // ── 2. Listen for INJECT_PROMPT ────────────────────────────────────────
     chrome.runtime.onMessage.addListener(
@@ -32,6 +28,12 @@ export default defineContentScript({
         sendResponse: (response: ExtensionMessage) => void,
       ) => {
         const msg = message as ExtensionMessage;
+
+        if (msg.type === "PING") {
+          sendResponse({ type: "PONG" });
+          return false;
+        }
+
         if (msg.type !== "INJECT_PROMPT") return false;
 
         void (async () => {

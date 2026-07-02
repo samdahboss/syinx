@@ -36,32 +36,10 @@ const SITE_URL_PATTERNS: Record<SiteId, string> = {
 };
 
 // ─────────────────────────────────────────────
-// Ready-tab registry
-// Tracks which tabs have sent CONTENT_SCRIPT_READY.
-// Keyed by tabId.
-// ─────────────────────────────────────────────
-
-const readyTabs = new Set<number>();
-
-// ─────────────────────────────────────────────
-// Main
+// Background Script
 // ─────────────────────────────────────────────
 
 export default defineBackground(() => {
-  // ── Track content script readiness ────────────────────────────────────────
-  chrome.runtime.onMessage.addListener((message: unknown, sender) => {
-    const msg = message as ExtensionMessage;
-    if (msg.type === "CONTENT_SCRIPT_READY" && sender.tab?.id !== undefined) {
-      readyTabs.add(sender.tab.id);
-    }
-    // Don't return true here — we're not sending an async response
-  });
-
-  // Clean up when a tab closes
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    readyTabs.delete(tabId);
-  });
-
   // ── Handle SEND_PROMPT from popup ──────────────────────────────────────────
   chrome.runtime.onMessage.addListener(
     (message: unknown, _sender, sendResponse) => {
@@ -110,7 +88,7 @@ async function injectIntoSite(
     // Wait for content script readiness (with retry/backoff)
     const ready = await waitForContentScript(tab.id!);
     if (!ready) {
-      return { siteId, success: false, error: "Content script did not become ready in time" };
+      return { siteId, success: false, error: "Content script not found. Please refresh this tab." };
     }
 
     // Send INJECT_PROMPT to the tab's content script
@@ -140,29 +118,13 @@ async function injectIntoSite(
 async function findOrOpenTab(siteId: SiteId): Promise<chrome.tabs.Tab> {
   // Look for an existing tab matching the site's URL pattern
   const [existing] = await chrome.tabs.query({ url: SITE_URL_PATTERNS[siteId] });
-  if (existing?.id !== undefined) return existing;
+  if (existing?.id !== undefined) {
+    return existing;
+  }
 
-  // Open a new tab and wait for it to finish loading
+  // Open a new tab
   const newTab = await chrome.tabs.create({ url: SITE_URLS[siteId], active: false });
-  await waitForTabLoad(newTab.id!);
-
-  // Refresh tab info after load
-  return chrome.tabs.get(newTab.id!);
-}
-
-function waitForTabLoad(tabId: number): Promise<void> {
-  return new Promise((resolve) => {
-    function listener(
-      updatedTabId: number,
-      info: chrome.tabs.TabChangeInfo,
-    ) {
-      if (updatedTabId === tabId && info.status === "complete") {
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    }
-    chrome.tabs.onUpdated.addListener(listener);
-  });
+  return newTab;
 }
 
 // ─────────────────────────────────────────────
@@ -170,21 +132,26 @@ function waitForTabLoad(tabId: number): Promise<void> {
 // ─────────────────────────────────────────────
 
 /**
- * Wait for a content script to announce CONTENT_SCRIPT_READY.
- * Uses polling against the readyTabs registry.
- * The content script sends this message on every page load.
+ * Polls the content script with PING messages until it responds with PONG.
  */
 async function waitForContentScript(
   tabId: number,
-  timeoutMs = 10_000,
-  pollMs = 250,
+  timeoutMs = 15_000,
+  pollMs = 500,
 ): Promise<boolean> {
-  if (readyTabs.has(tabId)) return true;
-
   const deadline = Date.now() + timeoutMs;
+  
   while (Date.now() < deadline) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      const res = await chrome.tabs.sendMessage(tabId, { type: "PING" }) as ExtensionMessage;
+      if (res && res.type === "PONG") {
+        return true;
+      }
+    } catch (e) {
+      // Ignore "Could not establish connection" while the page is loading
+    }
     await delay(pollMs);
-    if (readyTabs.has(tabId)) return true;
   }
   return false;
 }

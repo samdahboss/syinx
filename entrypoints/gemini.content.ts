@@ -1,22 +1,21 @@
 /**
- * entrypoints/content/claude.content.ts
+ * entrypoints/gemini.content.ts
  *
- * Content script for claude.ai
+ * Content script for gemini.google.com
+ *
+ * Strategy:
+ *  - autoSubmit=true  → navigate to ?q=<encoded_prompt> (URL param, most stable)
+ *  - autoSubmit=false → DOM injection (pre-fill without submitting)
  */
 
 import type { ExtensionMessage } from "@@/lib/messaging";
-import { claudeAdapter } from "@@/lib/adapters/claude.adapter";
+import { geminiAdapter } from "@@/lib/adapters/gemini.adapter";
 
 export default defineContentScript({
-  matches: ["https://claude.ai/*"],
+  matches: ["https://gemini.google.com/*"],
   runAt: "document_idle",
 
   main() {
-    // Announce readiness
-    void chrome.runtime.sendMessage({
-      type: "CONTENT_SCRIPT_READY",
-      siteId: "claude",
-    } satisfies ExtensionMessage);
 
     chrome.runtime.onMessage.addListener(
       (
@@ -25,6 +24,12 @@ export default defineContentScript({
         sendResponse: (response: ExtensionMessage) => void,
       ) => {
         const msg = message as ExtensionMessage;
+
+        if (msg.type === "PING") {
+          sendResponse({ type: "PONG" });
+          return false;
+        }
+
         if (msg.type !== "INJECT_PROMPT") return false;
 
         void (async () => {
@@ -32,25 +37,28 @@ export default defineContentScript({
           let error: string | undefined;
 
           try {
-            const el = await waitForElement(() => claudeAdapter.findInputElement(), 5000);
-            if (!el) throw new Error("Could not find Claude input element after waiting 5s");
+            // Pre-fill using DOM injection
+            const el = await waitForElement(() => geminiAdapter.findInputElement(), 5000);
+            if (!el) {
+              throw new Error("Could not find Gemini input element after waiting 5s");
+            }
 
-            claudeAdapter.insertPrompt(el, msg.prompt);
+            geminiAdapter.insertPrompt(el, msg.prompt);
 
             if (msg.autoSubmit) {
               await delay(300);
-              claudeAdapter.submit(el);
+              geminiAdapter.submit(el);
             }
 
             success = true;
           } catch (e) {
             error = e instanceof Error ? e.message : String(e);
-            console.error("[PromptSync] Claude injection failed:", error);
+            console.error("[PromptSync] Gemini injection failed:", error);
           }
 
           sendResponse({
             type: "INJECT_RESULT",
-            siteId: "claude",
+            siteId: "gemini",
             success,
             error,
           });

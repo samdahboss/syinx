@@ -38,7 +38,9 @@ export type ExtensionMessage =
       siteId: SiteId;
       success: boolean;
       error?: string;
-    };
+    }
+  | { type: "PING" }
+  | { type: "PONG" };
 
 /**
  * Response shape the background sends back to the popup after a SEND_PROMPT.
