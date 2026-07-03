@@ -5,13 +5,13 @@ interface Props {
   onChange: (val: string) => void;
   onSend: () => void;
   isLoading: boolean;
+  theme?: "dark" | "light";
 }
 
 export function PromptInput({ value, onChange, onSend, isLoading }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Ctrl+Enter or Cmd+Enter sends the prompt
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
       if (!isLoading && value.trim()) onSend();
@@ -22,60 +22,120 @@ export function PromptInput({ value, onChange, onSend, isLoading }: Props) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 260)}px`;
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        ref={textareaRef}
-        id="prompt-input"
-        className="prompt-textarea w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 min-h-[80px]"
-        placeholder="Type your prompt… (Ctrl+Enter to send)"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          autoResize();
-        }}
-        onKeyDown={handleKeyDown}
-        disabled={isLoading}
-        rows={3}
-      />
+    <div className="flex flex-col gap-4">
+      {/* Textarea */}
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          id="prompt-input"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(0,0,0,0.15)",
+            borderRadius: 0,
+            padding: "16px 20px",
+            fontSize: "14px",
+            lineHeight: "1.6",
+            minHeight: "140px",
+            width: "100%",
+            resize: "none",
+            outline: "none",
+          }}
+          className="
+            dark:border-white/15
+            text-black dark:text-white
+            placeholder-black/30 dark:placeholder-white/30
+            focus:border-black dark:focus:border-white
+            transition-colors duration-150
+          "
+          placeholder="Type your prompt… (Ctrl+Enter to send)"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            autoResize();
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={isLoading}
+          rows={5}
+        />
+        {value.length > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              bottom: "10px",
+              right: "12px",
+              fontSize: "10px",
+              fontFamily: "monospace",
+              opacity: 0.2,
+            }}
+            className="text-black dark:text-white"
+          >
+            {value.length}
+          </span>
+        )}
+      </div>
 
+      {/* Send button */}
       <button
         id="send-btn"
         onClick={onSend}
         disabled={isLoading || !value.trim()}
-        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm transition-all duration-150
-          bg-brand-500 hover:bg-brand-600 active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100
-          text-white shadow-md shadow-brand-900/30"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          alignSelf: "flex-start",
+          padding: "10px 24px",
+          fontSize: "11px",
+          fontWeight: 700,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          borderRadius: 0,
+          cursor: "pointer",
+          transition: "opacity 0.15s, transform 0.1s",
+        }}
+        className="
+          bg-black dark:bg-white
+          text-white dark:text-black
+          disabled:opacity-30 disabled:cursor-not-allowed
+          hover:opacity-75 active:scale-[0.98]
+        "
       >
         {isLoading ? (
           <>
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span
+              style={{
+                width: "12px",
+                height: "12px",
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTopColor: "white",
+                borderRadius: "50%",
+                display: "inline-block",
+                animation: "spin 0.6s linear infinite",
+              }}
+            />
             Sending…
           </>
         ) : (
           <>
-            <SendIcon />
+            {/* Send arrow icon — inline size to avoid Tailwind purge issue */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              width="14"
+              height="14"
+              style={{ flexShrink: 0 }}
+            >
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+            </svg>
             Send to AI
           </>
         )}
       </button>
     </div>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="w-4 h-4"
-    >
-      <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-    </svg>
   );
 }

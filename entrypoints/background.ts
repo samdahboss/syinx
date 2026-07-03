@@ -30,7 +30,7 @@ let currentGroupId: number | undefined;
 export default defineBackground(() => {
   // ── Open Options on Icon Click ───────────────────────────────────────────
   chrome.action.onClicked.addListener(() => {
-    void chrome.runtime.openOptionsPage();
+    void chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
   });
 
   // ── Handle Messages ──────────────────────────────────────────────────────

@@ -11,39 +11,53 @@ interface Props {
   entries: PromptHistoryEntry[];
   onResend: (entry: PromptHistoryEntry) => void;
   onDelete: (id: string) => void;
+  theme?: "dark" | "light";
 }
 
 export function HistoryList({ entries, onResend, onDelete }: Props) {
   if (entries.length === 0) {
     return (
-      <div className="text-center py-6 text-slate-600 text-xs">
-        No history yet — send your first prompt!
+      <div className="py-20 flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border border-black/10 dark:border-white/10 rounded-sm flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5 text-black/25 dark:text-white/25">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </div>
+        <p className="text-xs font-bold uppercase tracking-widest text-black/25 dark:text-white/25">
+          No history yet
+        </p>
+        <p className="text-xs text-black/20 dark:text-white/20">Send your first prompt to get started</p>
       </div>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-1.5 overflow-y-auto max-h-[220px] pr-0.5">
-      {entries.map((entry) => (
+    <ul className="flex flex-col divide-y divide-black/8 dark:divide-white/8">
+      {entries.map((entry, i) => (
         <li
           key={entry.id}
-          className="group flex items-start gap-2 bg-slate-800/50 hover:bg-slate-800 rounded-lg px-3 py-2.5 transition-colors duration-100"
+          className="group flex items-start gap-4 py-5 hover:bg-black/2 dark:hover:bg-white/2 transition-colors duration-100 -mx-2 px-2"
         >
+          {/* Index number */}
+          <span className="text-xs font-mono text-black/20 dark:text-white/20 w-5 shrink-0 pt-0.5 text-right">
+            {String(i + 1).padStart(2, "0")}
+          </span>
+
           {/* Prompt text */}
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-300 truncate leading-snug">
+            <p className="text-sm text-black dark:text-white leading-snug line-clamp-2">
               {entry.prompt}
             </p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] text-slate-600">
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] font-mono text-black/30 dark:text-white/30">
                 {formatTime(entry.timestamp)}
               </span>
-              <span className="text-slate-700">·</span>
+              <span className="text-black/15 dark:text-white/15">·</span>
               <div className="flex gap-1">
                 {entry.targets.map((t) => (
                   <span
                     key={t}
-                    className="text-[10px] text-slate-500 bg-slate-700/60 px-1.5 py-0.5 rounded"
+                    className="text-[10px] font-bold uppercase tracking-wider text-black/40 dark:text-white/40 border border-black/10 dark:border-white/10 px-1.5 py-0.5"
                   >
                     {SITE_LABELS[t]}
                   </span>
@@ -53,12 +67,12 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100 shrink-0">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
             <button
               id={`resend-${entry.id}`}
               onClick={() => { onResend(entry); }}
               title="Re-send this prompt"
-              className="p-1 rounded hover:bg-brand-500/20 text-slate-500 hover:text-brand-500 transition-colors"
+              className="p-2 border border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-black/40 dark:text-white/40 transition-all duration-150 rounded-sm"
             >
               <ResendIcon />
             </button>
@@ -66,7 +80,7 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
               id={`delete-${entry.id}`}
               onClick={() => { onDelete(entry.id); }}
               title="Delete from history"
-              className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
+              className="p-2 border border-black/10 dark:border-white/10 hover:border-black/50 dark:hover:border-white/50 text-black/25 dark:text-white/25 hover:text-black/60 dark:hover:text-white/60 transition-all duration-150 rounded-sm"
             >
               <DeleteIcon />
             </button>
@@ -81,7 +95,6 @@ function formatTime(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
   const diffHours = (now.getTime() - ms) / 3600_000;
-
   if (diffHours < 24) {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
