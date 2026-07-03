@@ -2,7 +2,7 @@
   "name": "promptsync",
   "description": "Send one prompt to ChatGPT, Claude, and Gemini at once — free, open-source, no API keys.",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",
