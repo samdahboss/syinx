@@ -38,9 +38,9 @@ export default defineContentScript({
 
           try {
             // Pre-fill using DOM injection
-            const el = await waitForElement(() => geminiAdapter.findInputElement(), 5000);
+            const el = await waitForElement(() => geminiAdapter.findInputElement(), 30_000);
             if (!el) {
-              throw new Error("Could not find Gemini input element after waiting 5s");
+              throw new Error("Could not find Gemini input element after waiting 30s");
             }
 
             geminiAdapter.insertPrompt(el, msg.prompt);

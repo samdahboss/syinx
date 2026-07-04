@@ -42,14 +42,6 @@ export default defineBackground(() => {
       void (async () => {
         const settings = await getSettings();
 
-        // 1. Open Side Panel if not follow-up
-        if (!msg.isFollowUp && sender.tab?.windowId) {
-          try {
-            await chrome.sidePanel.open({ windowId: sender.tab.windowId });
-          } catch (e) {
-            console.error("Failed to open side panel:", e);
-          }
-        }
 
         // 2. Persist to history
         try {
@@ -116,9 +108,9 @@ export default defineBackground(() => {
           try {
             if (msg.isFollowUp && currentGroupId) {
               // Ensure they are in the group
-              await chrome.tabs.group({ tabIds, groupId: currentGroupId });
+              await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]], groupId: currentGroupId });
             } else {
-              currentGroupId = await chrome.tabs.group({ tabIds });
+              currentGroupId = await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]] });
               await chrome.tabGroups.update(currentGroupId, { title: "PromptSync", color: "blue" });
             }
           } catch (e) {
@@ -177,7 +169,12 @@ async function waitForContentScript(
         return true;
       }
     } catch (e) {
-      // Ignore
+      // "Receiving end does not exist" is expected while the tab/content script
+      // is still loading — suppress it and keep polling.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("Receiving end does not exist")) {
+        console.warn("[PromptSync] Unexpected ping error:", e);
+      }
     }
     await delay(pollMs);
   }

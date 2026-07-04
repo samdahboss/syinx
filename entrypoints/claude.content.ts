@@ -33,8 +33,8 @@ export default defineContentScript({
           let error: string | undefined;
 
           try {
-            const el = await waitForElement(() => claudeAdapter.findInputElement(), 5000);
-            if (!el) throw new Error("Could not find Claude input element after waiting 5s");
+            const el = await waitForElement(() => claudeAdapter.findInputElement(), 30_000);
+            if (!el) throw new Error("Could not find Claude input element after waiting 30s");
 
             claudeAdapter.insertPrompt(el, msg.prompt);
 

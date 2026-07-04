@@ -41,11 +41,11 @@ export default defineContentScript({
           let error: string | undefined;
 
           try {
-            // Wait up to 5s for the input element (page may still be loading)
-            const el = await waitForElement(() => chatgptAdapter.findInputElement(), 5000);
+            // Wait up to 30s for the input element (slow connections may take longer)
+            const el = await waitForElement(() => chatgptAdapter.findInputElement(), 30_000);
 
             if (!el) {
-              throw new Error("Could not find ChatGPT input element after waiting 5s");
+              throw new Error("Could not find ChatGPT input element after waiting 30s");
             }
 
             chatgptAdapter.insertPrompt(el, msg.prompt);
