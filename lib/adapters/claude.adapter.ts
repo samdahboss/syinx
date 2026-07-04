@@ -110,22 +110,30 @@ export const claudeAdapter: SiteAdapter = {
   },
 
   getPriorResponseCount(): number {
-    return 0; // Claude waits for [data-is-streaming] which only appears for the new response, so priorCount isn't strictly needed.
+    return document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR).length;
   },
 
-  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
+  async waitForResponse(priorCount: number, timeoutMs = 120_000, onGenerateStart?: () => void): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
-    // Wait for a response element to appear
     const container = await pollUntil(
       () => {
-        const el = document.querySelector(RESPONSE_CONTAINER_SELECTOR);
-        return el as HTMLElement | null;
+        const containers = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
+        if (containers.length > priorCount) {
+          return containers[containers.length - 1] as HTMLElement;
+        }
+        return null;
       },
       deadline,
-      300,
+      500,
     );
     if (!container) throw new Error("No response appeared");
+
+    // Signal that generation has started
+    onGenerateStart?.();
+
+    // Settle delay. Wait 1000ms for Claude to transition into the "generating" state
+    await new Promise(r => setTimeout(r, 1000));
 
     // Wait for streaming to finish (attribute is removed)
     await pollUntil(
@@ -133,6 +141,14 @@ export const claudeAdapter: SiteAdapter = {
       deadline,
       500,
     );
+
+    // Claude's actual response is inside .font-claude-message or .prose
+    // We iterate backwards to find the last non-empty element
+    const contentEls = container.querySelectorAll<HTMLElement>('.font-claude-message, .prose');
+    for (let i = contentEls.length - 1; i >= 0; i--) {
+      const text = contentEls[i].innerText.trim();
+      if (text) return text;
+    }
 
     return container.innerText.trim();
   },

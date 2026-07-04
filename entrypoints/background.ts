@@ -90,6 +90,11 @@ export default defineBackground(() => {
         return false;
       }
 
+      if (msg.type === "GENERATION_STARTED") {
+        void chrome.runtime.sendMessage(msg);
+        return false;
+      }
+
       // ── RETRY_PROMPT: retry a single failed site ──────────────────────────
       if (msg.type === "RETRY_PROMPT") {
         void (async () => {

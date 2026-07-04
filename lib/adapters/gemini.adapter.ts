@@ -44,7 +44,7 @@ const SEL_SEND_BUTTON = 'button[aria-label*="Send"]';
 const SEL_SEND_BUTTON_FALLBACK = 'button.send-button';
 
 const RESPONSE_CONTAINER_SELECTOR = 'model-response';
-const STREAMING_INDICATOR_SELECTOR = '.loading-indicator';
+const STREAMING_INDICATOR_SELECTOR = 'button[aria-label*="Stop"], button[aria-label*="stop"], .loading-indicator, [class*="generating"]';
 
 // ─────────────────────────────────────────────
 // Adapter implementation
@@ -81,19 +81,16 @@ export const geminiAdapter: SiteAdapter = {
       cancelable: true,
     });
 
-    // dispatchEvent returns false if the event was cancelled (i.e. handled by Gemini's
-    // paste handler). If it returns true, Gemini did NOT handle it, so we fall back.
     const nativelyHandled = !el.dispatchEvent(pasteEvent);
 
     if (!nativelyHandled) {
-      // Gemini ignored the paste — fall back to execCommand / textContent
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inserted = (document as any).execCommand("insertText", false, prompt) as boolean;
       if (!inserted) {
         el.textContent = prompt;
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: prompt }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
       }
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: prompt }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     // Collapse selection to end
@@ -129,11 +126,13 @@ export const geminiAdapter: SiteAdapter = {
 
       // Timed out — last resort: Enter keypress
       console.warn("[Syinx] Gemini send button not ready after polling, trying Enter keypress");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       el.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+        new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true } as any),
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       el.dispatchEvent(
-        new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+        new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true } as any),
       );
     };
 
@@ -144,7 +143,7 @@ export const geminiAdapter: SiteAdapter = {
     return document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR).length;
   },
 
-  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
+  async waitForResponse(priorCount: number, timeoutMs = 120_000, onGenerateStart?: () => void): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
     const container = await pollUntil(
@@ -157,14 +156,34 @@ export const geminiAdapter: SiteAdapter = {
     );
     if (!container) throw new Error("No response appeared");
 
+    // Signal that generation has started
+    onGenerateStart?.();
+
+    // Wait a brief moment for the streaming indicator / stop button to mount
+    // Increased to 2500ms to ensure "Searching the web" transitions into a full generating state
+    await new Promise((r) => setTimeout(r, 2500));
+
     await pollUntil(
       () => !document.querySelector(STREAMING_INDICATOR_SELECTOR),
       deadline,
       500,
     );
 
-    // Extract text specifically from .message-content to avoid "Searching the web" placeholders
-    const messageContent = container.querySelector('.message-content') as HTMLElement;
-    return (messageContent || container).innerText.trim();
+    // After the stop button disappears, wait another moment for the DOM to settle
+    // and for the final text to be fully rendered.
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // Extract text specifically from the actual response body
+    const contentEls = container.querySelectorAll<HTMLElement>('.model-response-text, .markdown, message-content, .message-content');
+    
+    // Iterate backwards to find the last non-empty element
+    for (let i = contentEls.length - 1; i >= 0; i--) {
+      const text = contentEls[i].innerText.trim();
+      if (text) {
+        return text;
+      }
+    }
+
+    return container.innerText.trim();
   },
 };

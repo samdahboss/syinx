@@ -48,7 +48,7 @@ export interface SiteAdapter {
    * @param priorCount The number of responses that existed before submission.
    * @param timeoutMs  Maximum wait time in ms. Default: 120_000 (2 minutes).
    */
-  waitForResponse(priorCount: number, timeoutMs?: number): Promise<string>;
+  waitForResponse(priorCount: number, timeoutMs?: number, onGenerateStart?: () => void): Promise<string>;
 }
 
 /**

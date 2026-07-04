@@ -120,28 +120,46 @@ export const chatgptAdapter: SiteAdapter = {
     return document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR).length;
   },
 
-  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
+  async waitForResponse(priorCount: number, timeoutMs = 120_000, onGenerateStart?: () => void): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
-    // Step 1: Wait until a NEW assistant message container appears.
+    // Step 1: Wait for a new response container to appear.
+    // The number of assistant messages should increase by 1.
     const container = await pollUntil(
       () => {
-        const all = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
-        return all.length > priorCount ? (all[all.length - 1] as HTMLElement) : null;
+        const containers = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
+        if (containers.length > priorCount) {
+          return containers[containers.length - 1] as HTMLElement;
+        }
+        return null;
       },
       deadline,
-      300,
+      500,
     );
-    if (!container) throw new Error("No response container appeared");
+    if (!container) throw new Error("No response appeared");
 
-    // Step 2: Wait until streaming is done (stop button disappears).
+    // Signal that generation has started
+    onGenerateStart?.();
+
+    // Step 2: Settle delay. Wait 1000ms for ChatGPT to mount the streaming stop button mount
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // Step 3: Wait until streaming is done (stop button disappears).
     await pollUntil(
       () => !document.querySelector(STREAMING_STOP_SELECTOR),
       deadline,
       500,
     );
 
-    // Step 3: Extract text. Use innerText for natural whitespace.
+    // Step 4: Extract text. Use innerText for natural whitespace.
+    // ChatGPT's actual markdown is inside .markdown.prose
+    // We iterate backwards to find the last non-empty element
+    const contentEls = container.querySelectorAll<HTMLElement>('.markdown.prose, .prose');
+    for (let i = contentEls.length - 1; i >= 0; i--) {
+      const text = contentEls[i].innerText.trim();
+      if (text) return text;
+    }
+
     return container.innerText.trim();
   },
 };

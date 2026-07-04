@@ -9,7 +9,7 @@
 /** The three site IDs supported by Syinx v1. */
 export type SiteId = "chatgpt" | "claude" | "gemini";
 
-export type SiteStatus = "idle" | "pending" | "success" | "error";
+export type SiteStatus = "idle" | "pending" | "generating" | "success" | "error";
 
 export interface SiteResult {
   siteId: SiteId;
@@ -50,6 +50,11 @@ export type ExtensionMessage =
     siteId: SiteId;
     success: boolean;
     error?: string;
+  }
+  | {
+    type: "GENERATION_STARTED";
+    siteId: SiteId;
+    sessionId: string;
   }
   | {
     type: "PROGRESS_UPDATE";

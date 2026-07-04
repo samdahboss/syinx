@@ -105,6 +105,17 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
       </span>
     );
   }
+  if (status === "generating") {
+    return (
+      <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 text-[10px] px-2 py-0.5 bg-purple-500/10 rounded-full font-semibold uppercase tracking-wider border border-purple-500/20">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500" />
+        </span>
+        Generating
+      </span>
+    );
+  }
   if (status === "success") {
     return (
       <span className="text-emerald-600 dark:text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20">
@@ -245,6 +256,23 @@ export default function App() {
           return updated;
         });
         setIsSending(!msg.results.every((r) => r.status === "success" || r.status === "error"));
+      }
+      
+      if (msg.type === "GENERATION_STARTED") {
+        setSessions((prev) => {
+          const existingIdx = prev.findIndex((s) => s.id === msg.sessionId);
+          if (existingIdx === -1) return prev;
+          
+          const updated = [...prev];
+          const session = updated[existingIdx];
+          const rIdx = session.results.findIndex((r) => r.siteId === msg.siteId);
+          if (rIdx === -1) return prev;
+
+          const results = [...session.results];
+          results[rIdx] = { ...results[rIdx], status: "generating" };
+          updated[existingIdx] = { ...session, results };
+          return updated;
+        });
       }
 
       if (msg.type === "RESPONSE_UPDATE") {
@@ -445,6 +473,8 @@ export default function App() {
                                 ? "bg-red-500/3 dark:bg-red-500/5 border-red-500/15 dark:border-red-500/20"
                                 : r.status === "success"
                                 ? "bg-emerald-500/3 dark:bg-emerald-500/5 border-emerald-500/10 dark:border-emerald-500/15"
+                                : r.status === "generating"
+                                ? "bg-purple-500/3 dark:bg-purple-500/5 border-purple-500/15 dark:border-purple-500/20"
                                 : "bg-black/2 dark:bg-white/2 border-black/8 dark:border-white/8"
                             }`}
                           >

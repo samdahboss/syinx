@@ -59,7 +59,13 @@ export default defineContentScript({
               // Fire-and-forget: capture response asynchronously
               void (async () => {
                 try {
-                  const response = await chatgptAdapter.waitForResponse(priorCount, 120_000);
+                  const response = await chatgptAdapter.waitForResponse(priorCount, 120_000, () => {
+                    chrome.runtime.sendMessage({
+                      type: "GENERATION_STARTED",
+                      siteId: chatgptAdapter.siteId,
+                      sessionId: msg.sessionId,
+                    } satisfies ExtensionMessage);
+                  });
                   chrome.runtime.sendMessage({
                     type: "RESPONSE_CAPTURED",
                     siteId: chatgptAdapter.siteId,

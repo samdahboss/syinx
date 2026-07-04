@@ -37,7 +37,6 @@ export default defineContentScript({
           let error: string | undefined;
 
           try {
-            // Pre-fill using DOM injection
             const el = await waitForElement(() => geminiAdapter.findInputElement(), 30_000);
             if (!el) {
               throw new Error("Could not find Gemini input element after waiting 30s");
@@ -54,7 +53,13 @@ export default defineContentScript({
               // Fire-and-forget: capture response asynchronously
               void (async () => {
                 try {
-                  const response = await geminiAdapter.waitForResponse(priorCount, 120_000);
+                  const response = await geminiAdapter.waitForResponse(priorCount, 120_000, () => {
+                    chrome.runtime.sendMessage({
+                      type: "GENERATION_STARTED",
+                      siteId: geminiAdapter.siteId,
+                      sessionId: msg.sessionId,
+                    } satisfies ExtensionMessage);
+                  });
                   chrome.runtime.sendMessage({
                     type: "RESPONSE_CAPTURED",
                     siteId: geminiAdapter.siteId,
