@@ -133,12 +133,48 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
   return null;
 }
 
+function FocusModal({ response, siteId, onClose }: { response: string; siteId: SiteId; onClose: () => void }) {
+  const { label, color } = SITE_META[siteId];
+  
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = "unset"; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-white dark:bg-[#0b0c10]">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-black/10 dark:border-white/10 shrink-0 bg-white dark:bg-[#0b0c10]">
+        <div className="flex items-center gap-2 font-bold text-sm" style={{ color }}>
+          {label} Response
+        </div>
+        <button 
+          onClick={onClose}
+          className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-black/50 dark:text-white/50"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white dark:bg-[#0b0c10]">
+        <div
+          className="prose prose-invert prose-sm max-w-none prose-p:my-3 prose-pre:my-4 prose-pre:bg-black/5 dark:prose-pre:bg-white/5 prose-pre:text-black dark:prose-pre:text-white prose-code:px-1.5 prose-code:py-0.5 prose-code:bg-black/5 dark:prose-code:bg-white/5 prose-code:rounded prose-img:rounded-md prose-img:shadow-sm"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // Response View (Expand-in-place)
 // ─────────────────────────────────────────────
 
 function ResponseView({ response, siteId }: { response: string; siteId: SiteId }) {
   const [expanded, setExpanded] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const { color } = SITE_META[siteId];
 
   if (!response) return null;
@@ -146,21 +182,35 @@ function ResponseView({ response, siteId }: { response: string; siteId: SiteId }
   return (
     <div className="mt-2 text-[11px] bg-white dark:bg-[#0f1117] border border-black/10 dark:border-white/10 rounded-sm overflow-hidden relative">
       <div
-        className={`prose p-2.5 transition-all duration-300 ${
+        className={`prose prose-invert prose-sm max-w-none text-[10px] sm:text-[11px] leading-relaxed opacity-90 prose-p:my-1.5 prose-pre:my-2 prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:text-black dark:prose-pre:text-white prose-code:text-[9px] prose-code:px-1 prose-code:py-0.5 prose-code:bg-black/5 dark:prose-code:bg-white/5 prose-code:rounded whitespace-pre-wrap font-mono transition-all duration-300 p-2.5 ${
           !expanded ? "max-h-32 overflow-hidden" : ""
         }`}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
       />
       {!expanded && (
-        <div className="absolute bottom-6 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-[#0f1117] to-transparent pointer-events-none" />
+        <div className="absolute bottom-7 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-[#0f1117] to-transparent pointer-events-none" />
       )}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full text-center py-1.5 text-[9px] font-bold uppercase tracking-wider bg-black/3 dark:bg-white/3 hover:bg-black/5 dark:hover:bg-white/5 border-t border-black/5 dark:border-white/5 transition-colors"
-        style={{ color }}
-      >
-        {expanded ? "Collapse" : "Read Full Response"}
-      </button>
+      <div className="flex bg-black/3 dark:bg-white/3 border-t border-black/5 dark:border-white/5">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 text-center py-1.5 text-[9px] font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          style={{ color }}
+        >
+          {expanded ? "Collapse" : "Read Full Response"}
+        </button>
+        <div className="w-[1px] bg-black/5 dark:bg-white/5" />
+        <button
+          onClick={() => setFocusMode(true)}
+          className="px-3 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+          title="Focus View"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+        </button>
+      </div>
+
+      {focusMode && (
+        <FocusModal response={response} siteId={siteId} onClose={() => setFocusMode(false)} />
+      )}
     </div>
   );
 }

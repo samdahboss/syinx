@@ -178,9 +178,18 @@ export const geminiAdapter: SiteAdapter = {
     
     // Iterate backwards to find the last non-empty element
     for (let i = contentEls.length - 1; i >= 0; i--) {
-      const text = contentEls[i].innerText.trim();
-      if (text) {
-        return text;
+      const el = contentEls[i];
+      const text = el.innerText.trim();
+      
+      // Also extract any images and append them as markdown
+      const imgs = Array.from(el.querySelectorAll('img'));
+      const imageMarkdown = imgs
+        .filter(img => img.src && !img.src.includes('avatar') && !img.src.includes('favicon'))
+        .map(img => `\n\n![${img.alt || 'Image'}](${img.src})`)
+        .join('');
+
+      if (text || imageMarkdown) {
+        return text + imageMarkdown;
       }
     }
 

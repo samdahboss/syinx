@@ -156,8 +156,16 @@ export const chatgptAdapter: SiteAdapter = {
     // We iterate backwards to find the last non-empty element
     const contentEls = container.querySelectorAll<HTMLElement>('.markdown.prose, .prose');
     for (let i = contentEls.length - 1; i >= 0; i--) {
-      const text = contentEls[i].innerText.trim();
-      if (text) return text;
+      const el = contentEls[i];
+      const text = el.innerText.trim();
+      
+      const imgs = Array.from(el.querySelectorAll('img'));
+      const imageMarkdown = imgs
+        .filter(img => img.src && !img.src.includes('avatar') && !img.src.includes('favicon'))
+        .map(img => `\n\n![${img.alt || 'Image'}](${img.src})`)
+        .join('');
+
+      if (text || imageMarkdown) return text + imageMarkdown;
     }
 
     return container.innerText.trim();

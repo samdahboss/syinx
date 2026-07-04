@@ -17,8 +17,8 @@ export function renderMarkdown(text: string): string {
     ALLOWED_TAGS: [
       "p", "br", "strong", "em", "code", "pre", "ul", "ol", "li",
       "h1", "h2", "h3", "h4", "blockquote", "a", "hr", "table",
-      "thead", "tbody", "tr", "th", "td",
+      "thead", "tbody", "tr", "th", "td", "img"
     ],
-    ALLOWED_ATTR: ["href", "target", "rel", "class"],
+    ALLOWED_ATTR: ["href", "target", "rel", "class", "src", "alt", "width", "height"],
   });
 }
