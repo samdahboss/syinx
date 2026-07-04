@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { PromptInput } from "@@/components/PromptInput";
 import { SiteToggleList } from "@@/components/SiteToggleList";
 import { HistoryList } from "@@/components/HistoryList";
@@ -54,17 +54,20 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [theme, setTheme] = useState<Theme>("dark");
+  const windowIdRef = useRef<number | undefined>(undefined);
 
   // ── Load persisted state on mount ────────────────────────────────────────
   useEffect(() => {
     void (async () => {
-      const [savedSettings, savedHistory] = await Promise.all([
+      const [savedSettings, savedHistory, currentWindow] = await Promise.all([
         getSettings(),
         getRecentHistory(20),
+        chrome.windows.getCurrent(),
       ]);
       setSettings(savedSettings);
       setTargets(savedSettings.defaultTargets);
       setHistory(savedHistory);
+      windowIdRef.current = currentWindow.id;
     })();
 
     // Load persisted theme
@@ -95,6 +98,20 @@ export default function App() {
   async function handleSend() {
     if (!prompt.trim() || isLoading || targets.length === 0) return;
     setIsLoading(true);
+
+    // Open sidepanel HERE — this function is called directly from a button click
+    // (a real user gesture), so chrome.sidePanel.open() is allowed. Doing this
+    // from the background message handler does NOT work because the gesture chain
+    // is broken once a message crosses extension contexts.
+    try {
+      const wid = windowIdRef.current;
+      if (wid !== undefined) {
+        await chrome.sidePanel.open({ windowId: wid });
+      }
+    } catch (e) {
+      console.warn("[Syinx] Could not open sidepanel:", e);
+    }
+
     try {
       await sendToBackground({
         type: "SEND_PROMPT",
@@ -138,11 +155,7 @@ export default function App() {
         <div className="max-w-3xl mx-auto px-8 py-5 flex items-center justify-between">
           {/* Logo wordmark */}
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-black dark:bg-white rounded-sm flex items-center justify-center">
-              <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
-                <path d="M2 8h5M9 4l4 4-4 4" stroke={theme === "dark" ? "black" : "white"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+            <img src="/icon-128.png" alt="Syinx Logo" className="w-8 h-8 rounded-sm" />
             <span className="text-sm font-bold tracking-widest uppercase">Syinx</span>
           </div>
 

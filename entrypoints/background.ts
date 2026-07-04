@@ -28,7 +28,7 @@ const SITE_URL_PATTERNS: Record<SiteId, string> = {
 let currentGroupId: number | undefined;
 
 export default defineBackground(() => {
-  // ── Open Options on Icon Click ───────────────────────────────────────────
+  // ── Open Options Page on Icon Click ──────────────────────────────────────
   chrome.action.onClicked.addListener(() => {
     void chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
   });
@@ -37,13 +37,63 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener(
     (message: unknown, sender, sendResponse) => {
       const msg = message as ExtensionMessage;
+
+      // ── RETRY_PROMPT: retry a single failed site ──────────────────────────
+      if (msg.type === "RETRY_PROMPT") {
+        void (async () => {
+          const settings = await getSettings();
+          const result: SiteResult = { siteId: msg.siteId, status: "pending" };
+
+          const notifyProgress = (results: SiteResult[]) => {
+            void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results } as ExtensionMessage);
+          };
+
+          notifyProgress([result]);
+
+          try {
+            const tab = await findOrOpenTab(msg.siteId, settings.useNewTabs, true);
+            if (tab.id) {
+              await chrome.tabs.update(tab.id, { active: true });
+              const ready = await waitForContentScript(tab.id);
+              if (!ready) {
+                result.status = "error";
+                result.error = "Content script not found. Please refresh.";
+              } else {
+                const injectResult = await sendMessageWithRetry(tab.id, {
+                  type: "INJECT_PROMPT",
+                  prompt: msg.prompt,
+                  autoSubmit: msg.autoSubmit,
+                });
+                if (injectResult && typeof injectResult === "object" && "type" in injectResult && injectResult.type === "INJECT_RESULT") {
+                  const r = injectResult as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
+                  result.status = r.success ? "success" : "error";
+                  result.error = r.error;
+                } else {
+                  result.status = "error";
+                  result.error = "Unexpected response from content script";
+                }
+              }
+            } else {
+              result.status = "error";
+              result.error = "Failed to create or find tab";
+            }
+          } catch (e) {
+            result.status = "error";
+            result.error = e instanceof Error ? e.message : String(e);
+          }
+
+          notifyProgress([result]);
+          sendResponse({ results: [result] });
+        })();
+        return true;
+      }
+
       if (msg.type !== "SEND_PROMPT") return false;
 
       void (async () => {
         const settings = await getSettings();
 
-
-        // 2. Persist to history
+        // 1. Persist to history
         try {
           await addHistoryEntry(msg.prompt, msg.targets);
         } catch (e) {
@@ -107,7 +157,6 @@ export default defineBackground(() => {
         if (tabIds.length > 0) {
           try {
             if (msg.isFollowUp && currentGroupId) {
-              // Ensure they are in the group
               await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]], groupId: currentGroupId });
             } else {
               currentGroupId = await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]] });

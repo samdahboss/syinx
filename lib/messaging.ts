@@ -54,7 +54,8 @@ export type ExtensionMessage =
     results: SiteResult[];
   }
   | { type: "PING" }
-  | { type: "PONG" };
+  | { type: "PONG" }
+  | { type: "RETRY_PROMPT"; siteId: SiteId; prompt: string; autoSubmit: boolean };
 
 /**
  * Response shape the background sends back after a SEND_PROMPT.
