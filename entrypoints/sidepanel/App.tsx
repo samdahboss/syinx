@@ -453,10 +453,14 @@ export default function App() {
             id="follow-up-send-btn"
             onClick={() => void handleFollowUp()}
             disabled={isSending || !followUp.trim() || followUpTargets.length === 0}
-            className="h-[60px] px-3 flex items-center justify-center bg-black dark:bg-white text-white dark:text-black rounded-sm disabled:opacity-30 hover:opacity-80 transition-all duration-150"
+            className="shrink-0 w-9 self-stretch flex items-center justify-center rounded-sm transition-all duration-150 disabled:opacity-25 hover:opacity-80"
+            style={{
+              background: theme === "dark" ? "#ffffff" : "#000000",
+              color: theme === "dark" ? "#000000" : "#ffffff",
+            }}
           >
             {isSending ? (
-              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <span className="w-3 h-3 border-[1.5px] border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <SendIcon />
             )}

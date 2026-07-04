@@ -85,11 +85,11 @@ export function SettingsPanel({ settings, onUpdate }: Props) {
         </p>
         <div className="flex flex-col gap-2">
           {[
-            { key: "Ctrl+Alt+C", label: "Send to ChatGPT" },
-            { key: "Ctrl+Alt+L", label: "Send to Claude" },
-            { key: "Ctrl+Alt+G", label: "Send to Gemini" },
-            { key: "Ctrl+Alt+S", label: "Sync to all AIs" },
-            { key: "Ctrl+Enter", label: "Send from prompt box" },
+            { key: "Alt+Shift+C", label: "Send to ChatGPT" },
+            { key: "Alt+Shift+L", label: "Send to Claude" },
+            { key: "Alt+Shift+G", label: "Send to Gemini" },
+            { key: "Alt+Shift+S", label: "Sync to all AIs" },
+            { key: "Ctrl+Enter",  label: "Send from prompt box" },
           ].map(({ key, label }) => (
             <div key={key} className="flex items-center justify-between py-2 border-b border-black/5 dark:border-white/5">
               <span className="text-xs text-black/50 dark:text-white/50">{label}</span>

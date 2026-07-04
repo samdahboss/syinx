@@ -77,10 +77,12 @@ export const geminiAdapter: SiteAdapter = {
       cancelable: true,
     });
 
-    const handled = el.dispatchEvent(pasteEvent);
+    // dispatchEvent returns false if the event was cancelled (i.e. handled by Gemini's
+    // paste handler). If it returns true, Gemini did NOT handle it, so we fall back.
+    const nativelyHandled = !el.dispatchEvent(pasteEvent);
 
-    // If the site didn't natively handle the paste event (preventDefault), fallback
-    if (handled) {
+    if (!nativelyHandled) {
+      // Gemini ignored the paste — fall back to execCommand / textContent
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inserted = (document as any).execCommand("insertText", false, prompt) as boolean;
       if (!inserted) {
@@ -100,21 +102,38 @@ export const geminiAdapter: SiteAdapter = {
   },
 
   submit(el: HTMLElement): void {
-    const sendBtn =
-      document.querySelector<HTMLButtonElement>(SEL_SEND_BUTTON) ??
-      document.querySelector<HTMLButtonElement>(SEL_SEND_BUTTON_FALLBACK);
+    // Poll for the send button to become enabled — Gemini (Angular) needs a tick
+    // or two to run change detection after the input event before enabling the button.
+    const maxWaitMs = 3_000;
+    const pollMs = 100;
+    const deadline = Date.now() + maxWaitMs;
 
-    if (sendBtn && !sendBtn.disabled) {
-      sendBtn.click();
-      return;
-    }
+    const trySubmit = () => {
+      const sendBtn =
+        document.querySelector<HTMLButtonElement>(SEL_SEND_BUTTON) ??
+        document.querySelector<HTMLButtonElement>(SEL_SEND_BUTTON_FALLBACK);
 
-    // Fallback: Enter keypress
-    el.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
-    );
-    el.dispatchEvent(
-      new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
-    );
+      if (sendBtn && !sendBtn.disabled) {
+        sendBtn.click();
+        return;
+      }
+
+      if (Date.now() < deadline) {
+        setTimeout(trySubmit, pollMs);
+        return;
+      }
+
+      // Timed out — last resort: Enter keypress
+      console.warn("[Syinx] Gemini send button not ready after polling, trying Enter keypress");
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+      );
+      el.dispatchEvent(
+        new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+      );
+    };
+
+    trySubmit();
   },
 };
+
