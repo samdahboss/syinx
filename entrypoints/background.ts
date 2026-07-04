@@ -33,6 +33,35 @@ export default defineBackground(() => {
     void chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
   });
 
+  // ── Keyboard Shortcut Commands ────────────────────────────────────────────
+  chrome.commands.onCommand.addListener((command) => {
+    const knownCommands = ["send-to-chatgpt", "send-to-claude", "send-to-gemini", "sync-prompts"] as const;
+    type KnownCommand = typeof knownCommands[number];
+    if (!knownCommands.includes(command as KnownCommand)) return;
+
+    void (async () => {
+      // Find an already-open options tab to forward the command to
+      const optionsTabs = await chrome.tabs.query({ url: chrome.runtime.getURL("options.html") });
+
+      if (optionsTabs.length > 0 && optionsTabs[0].id !== undefined) {
+        // Focus the options tab so the user sees what's happening
+        const tab = optionsTabs[0];
+        await chrome.tabs.update(tab.id!, { active: true });
+        if (tab.windowId !== undefined) {
+          await chrome.windows.update(tab.windowId, { focused: true });
+        }
+        // Forward the command so the options page can fire the right targets
+        void chrome.tabs.sendMessage(tab.id!, {
+          type: "TRIGGER_COMMAND",
+          command: command as KnownCommand,
+        } satisfies ExtensionMessage);
+      } else {
+        // Options page not open — open it; user will need to type a prompt
+        await chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      }
+    })();
+  });
+
   // ── Handle Messages ──────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener(
     (message: unknown, sender, sendResponse) => {

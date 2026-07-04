@@ -3,7 +3,7 @@ import { PromptInput } from "@@/components/PromptInput";
 import { SiteToggleList } from "@@/components/SiteToggleList";
 import { HistoryList } from "@@/components/HistoryList";
 import { SettingsPanel } from "@@/components/SettingsPanel";
-import type { SiteId, SendPromptResponse } from "@@/lib/messaging";
+import type { SiteId, SendPromptResponse, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import type { PromptHistoryEntry } from "@@/lib/history";
 import { getRecentHistory, removeHistoryEntry } from "@@/lib/history";
@@ -94,29 +94,31 @@ export default function App() {
     setHistory(h);
   }, []);
 
-  // ── Send prompt ───────────────────────────────────────────────────────────
-  async function handleSend() {
-    if (!prompt.trim() || isLoading || targets.length === 0) return;
+  // ── Core send logic (shared by button click and keyboard shortcuts) ───────
+  const handleSendToTargets = useCallback(async (
+    overrideTargets?: SiteId[],
+    openPanel = false,
+  ) => {
+    const currentPrompt = prompt.trim();
+    const currentTargets = overrideTargets ?? targets;
+    if (!currentPrompt || isLoading || currentTargets.length === 0) return;
     setIsLoading(true);
 
-    // Open sidepanel HERE — this function is called directly from a button click
-    // (a real user gesture), so chrome.sidePanel.open() is allowed. Doing this
-    // from the background message handler does NOT work because the gesture chain
-    // is broken once a message crosses extension contexts.
-    try {
-      const wid = windowIdRef.current;
-      if (wid !== undefined) {
-        await chrome.sidePanel.open({ windowId: wid });
+    if (openPanel) {
+      // Only allowed when called from a direct user gesture (button click)
+      try {
+        const wid = windowIdRef.current;
+        if (wid !== undefined) await chrome.sidePanel.open({ windowId: wid });
+      } catch (e) {
+        console.warn("[Syinx] Could not open sidepanel:", e);
       }
-    } catch (e) {
-      console.warn("[Syinx] Could not open sidepanel:", e);
     }
 
     try {
       await sendToBackground({
         type: "SEND_PROMPT",
-        prompt: prompt.trim(),
-        targets,
+        prompt: currentPrompt,
+        targets: currentTargets,
         autoSubmit: settings.autoSubmit,
         isFollowUp: false,
       });
@@ -126,7 +128,36 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  }, [prompt, targets, isLoading, settings.autoSubmit, refreshHistory, windowIdRef]);
+
+  // ── Button click → send to currently selected targets + open sidepanel ────
+  function handleSend() {
+    void handleSendToTargets(undefined, true);
   }
+
+  // ── Keyboard shortcut commands forwarded from background ──────────────────
+  useEffect(() => {
+    const COMMAND_TARGETS: Record<string, SiteId[]> = {
+      "send-to-chatgpt": ["chatgpt"],
+      "send-to-claude":  ["claude"],
+      "send-to-gemini":  ["gemini"],
+      "sync-prompts":    ["chatgpt", "claude", "gemini"],
+    };
+
+    const listener = (message: unknown) => {
+      const msg = message as ExtensionMessage;
+      if (msg.type !== "TRIGGER_COMMAND") return;
+      const commandTargets = COMMAND_TARGETS[msg.command];
+      if (!commandTargets) return;
+      // Navigate to the chat tab so the user sees the prompt field
+      setActiveTab("chat");
+      // Fire without opening sidepanel (no user gesture context here)
+      void handleSendToTargets(commandTargets as SiteId[], false);
+    };
+
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, [handleSendToTargets]);
 
   function handleResend(entry: PromptHistoryEntry) {
     setPrompt(entry.prompt);

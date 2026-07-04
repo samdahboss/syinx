@@ -55,7 +55,8 @@ export type ExtensionMessage =
   }
   | { type: "PING" }
   | { type: "PONG" }
-  | { type: "RETRY_PROMPT"; siteId: SiteId; prompt: string; autoSubmit: boolean };
+  | { type: "RETRY_PROMPT"; siteId: SiteId; prompt: string; autoSubmit: boolean }
+  | { type: "TRIGGER_COMMAND"; command: "send-to-chatgpt" | "send-to-claude" | "send-to-gemini" | "sync-prompts" };
 
 /**
  * Response shape the background sends back after a SEND_PROMPT.
