@@ -6,7 +6,7 @@
 
 import type { ExtensionMessage, SendPromptResponse, SiteId, SiteResult } from "@@/lib/messaging";
 import { addHistoryEntry } from "@@/lib/history";
-import { getSettings } from "@@/lib/storage";
+import { getSettings, addResponseToEntry } from "@@/lib/storage";
 
 // ─────────────────────────────────────────────
 // Site URL patterns
@@ -67,6 +67,29 @@ export default defineBackground(() => {
     (message: unknown, sender, sendResponse) => {
       const msg = message as ExtensionMessage;
 
+      if (msg.type === "RESPONSE_CAPTURED") {
+        void (async () => {
+          try {
+            await addResponseToEntry(msg.sessionId, {
+              siteId: msg.siteId,
+              text: msg.response,
+              capturedAt: Date.now(),
+              error: msg.error,
+            });
+          } catch (e) {
+            console.warn("[Syinx] Failed to save captured response:", e);
+          }
+          void chrome.runtime.sendMessage({
+            type: "RESPONSE_UPDATE",
+            siteId: msg.siteId,
+            response: msg.response,
+            sessionId: msg.sessionId,
+            error: msg.error,
+          } satisfies ExtensionMessage);
+        })();
+        return false;
+      }
+
       // ── RETRY_PROMPT: retry a single failed site ──────────────────────────
       if (msg.type === "RETRY_PROMPT") {
         void (async () => {
@@ -74,7 +97,7 @@ export default defineBackground(() => {
           const result: SiteResult = { siteId: msg.siteId, status: "pending" };
 
           const notifyProgress = (results: SiteResult[]) => {
-            void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results } as ExtensionMessage);
+            void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results, sessionId: msg.sessionId } as ExtensionMessage);
           };
 
           notifyProgress([result]);
@@ -92,6 +115,7 @@ export default defineBackground(() => {
                   type: "INJECT_PROMPT",
                   prompt: msg.prompt,
                   autoSubmit: msg.autoSubmit,
+                  sessionId: msg.sessionId,
                 });
                 if (injectResult && typeof injectResult === "object" && "type" in injectResult && injectResult.type === "INJECT_RESULT") {
                   const r = injectResult as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
@@ -124,14 +148,14 @@ export default defineBackground(() => {
 
         // 1. Persist to history
         try {
-          await addHistoryEntry(msg.prompt, msg.targets);
+          await addHistoryEntry(msg.prompt, msg.targets, msg.sessionId);
         } catch (e) {
           console.warn("[Syinx] Failed to save history entry:", e);
         }
 
         const results: SiteResult[] = msg.targets.map(id => ({ siteId: id, status: "pending" }));
         const notifyProgress = () => {
-          void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results } as ExtensionMessage);
+          void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results, sessionId: msg.sessionId } as ExtensionMessage);
         };
 
         notifyProgress();
@@ -159,6 +183,7 @@ export default defineBackground(() => {
                   type: "INJECT_PROMPT",
                   prompt: msg.prompt,
                   autoSubmit: msg.autoSubmit,
+                  sessionId: msg.sessionId,
                 });
 
                 if (injectResult && typeof injectResult === "object" && "type" in injectResult && injectResult.type === "INJECT_RESULT") {

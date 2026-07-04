@@ -18,7 +18,7 @@ import {
 // Uses crypto.randomUUID() which is available in MV3 service workers
 // ─────────────────────────────────────────────
 
-function generateId(): string {
+export function generateId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
@@ -37,18 +37,20 @@ function generateId(): string {
 export async function addHistoryEntry(
   prompt: string,
   targets: SiteId[],
-): Promise<PromptHistoryEntry> {
-  const entry: PromptHistoryEntry = {
-    id: generateId(),
+  id: string,
+): Promise<void> {
+  const entries = await getHistory();
+
+  // Create new entry
+  const newEntry: PromptHistoryEntry = {
+    id,
     prompt,
     targets,
     timestamp: Date.now(),
   };
 
-  const history = await getHistory();
-  const updated = [entry, ...history].slice(0, HISTORY_CAP);
+  const updated = [newEntry, ...entries].slice(0, HISTORY_CAP);
   await setHistory(updated);
-  return entry;
 }
 
 /**

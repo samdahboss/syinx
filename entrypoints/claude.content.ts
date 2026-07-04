@@ -39,8 +39,30 @@ export default defineContentScript({
             claudeAdapter.insertPrompt(el, msg.prompt);
 
             if (msg.autoSubmit) {
+              // Small delay so the send button becomes enabled after state update
               await delay(300);
               claudeAdapter.submit(el);
+
+              // Fire-and-forget: capture response asynchronously
+              void (async () => {
+                try {
+                  const response = await claudeAdapter.waitForResponse(120_000);
+                  chrome.runtime.sendMessage({
+                    type: "RESPONSE_CAPTURED",
+                    siteId: claudeAdapter.siteId,
+                    response,
+                    sessionId: msg.sessionId,
+                  } satisfies ExtensionMessage);
+                } catch (e) {
+                  chrome.runtime.sendMessage({
+                    type: "RESPONSE_CAPTURED",
+                    siteId: claudeAdapter.siteId,
+                    response: "",
+                    sessionId: msg.sessionId,
+                    error: e instanceof Error ? e.message : String(e),
+                  } satisfies ExtensionMessage);
+                }
+              })();
             }
 
             success = true;

@@ -20,6 +20,7 @@
  */
 
 import type { SiteAdapter } from "./types";
+import { pollUntil } from "./types";
 
 // ─────────────────────────────────────────────
 // 🔧 SELECTOR CONSTANTS — edit here when ChatGPT changes their DOM
@@ -39,6 +40,9 @@ const SEL_SEND_BUTTON = 'button[data-testid="send-button"]';
 
 /** Fallback send button — aria-label tends to survive minor UI refactors. */
 const SEL_SEND_BUTTON_FALLBACK = 'button[aria-label="Send prompt"]';
+
+const RESPONSE_CONTAINER_SELECTOR = '[data-message-author-role="assistant"]';
+const STREAMING_STOP_SELECTOR = 'button[data-testid="stop-button"]';
 
 // ─────────────────────────────────────────────
 // Adapter implementation
@@ -110,5 +114,30 @@ export const chatgptAdapter: SiteAdapter = {
     // Fallback: simulate Enter keypress on the input element
     el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
     el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+  },
+
+  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+
+    // Step 1: Wait until at least one assistant message container appears.
+    const container = await pollUntil(
+      () => {
+        const all = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
+        return all.length > 0 ? (all[all.length - 1] as HTMLElement) : null;
+      },
+      deadline,
+      300,
+    );
+    if (!container) throw new Error("No response container appeared");
+
+    // Step 2: Wait until streaming is done (stop button disappears).
+    await pollUntil(
+      () => !document.querySelector(STREAMING_STOP_SELECTOR),
+      deadline,
+      500,
+    );
+
+    // Step 3: Extract text. Use innerText for natural whitespace.
+    return container.innerText.trim();
   },
 };

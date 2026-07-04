@@ -10,7 +10,7 @@ export default defineConfig({
     description:
       "Send one prompt to ChatGPT, Claude, and Gemini at once — free, open-source, no API keys, nothing leaves your browser.",
     version: "0.1.0",
-    permissions: ["storage", "tabs", "sidePanel", "tabGroups"],
+    permissions: ["storage", "tabs", "sidePanel", "tabGroups", "clipboardWrite"],
     host_permissions: [
       "https://chatgpt.com/*",
       "https://claude.ai/*",

@@ -6,7 +6,7 @@ import { SettingsPanel } from "@@/components/SettingsPanel";
 import type { SiteId, SendPromptResponse, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import type { PromptHistoryEntry } from "@@/lib/history";
-import { getRecentHistory, removeHistoryEntry } from "@@/lib/history";
+import { getRecentHistory, removeHistoryEntry, generateId } from "@@/lib/history";
 import type { Settings } from "@@/lib/storage";
 import { getSettings, updateSettings } from "@@/lib/storage";
 
@@ -115,12 +115,14 @@ export default function App() {
     }
 
     try {
+      const sessionId = generateId();
       await sendToBackground({
         type: "SEND_PROMPT",
         prompt: currentPrompt,
         targets: currentTargets,
         autoSubmit: settings.autoSubmit,
         isFollowUp: false,
+        sessionId,
       });
       await refreshHistory();
     } catch (e) {

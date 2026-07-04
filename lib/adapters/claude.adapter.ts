@@ -15,6 +15,7 @@
  */
 
 import type { SiteAdapter } from "./types";
+import { pollUntil } from "./types";
 
 // ─────────────────────────────────────────────
 // 🔧 SELECTOR CONSTANTS — edit here when Claude changes their DOM
@@ -31,6 +32,8 @@ const SEL_SEND_BUTTON = 'button[aria-label="Send message"]';
 
 /** Fallback: button containing an SVG paper-plane icon near the composer */
 const SEL_SEND_BUTTON_FALLBACK = 'button[type="submit"]';
+
+const RESPONSE_CONTAINER_SELECTOR = '[data-is-streaming]';
 
 // ─────────────────────────────────────────────
 // Adapter implementation
@@ -104,5 +107,29 @@ export const claudeAdapter: SiteAdapter = {
     el.dispatchEvent(
       new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
     );
+  },
+
+  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+
+    // Wait for a response element to appear
+    const container = await pollUntil(
+      () => {
+        const el = document.querySelector(RESPONSE_CONTAINER_SELECTOR);
+        return el as HTMLElement | null;
+      },
+      deadline,
+      300,
+    );
+    if (!container) throw new Error("No response appeared");
+
+    // Wait for streaming to finish (attribute is removed)
+    await pollUntil(
+      () => !document.querySelector('[data-is-streaming="true"]'),
+      deadline,
+      500,
+    );
+
+    return container.innerText.trim();
   },
 };

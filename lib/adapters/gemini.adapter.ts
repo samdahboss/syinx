@@ -22,6 +22,7 @@
  */
 
 import type { SiteAdapter } from "./types";
+import { pollUntil } from "./types";
 
 // ─────────────────────────────────────────────
 // 🔧 SELECTOR CONSTANTS — edit here when Gemini changes their DOM
@@ -41,6 +42,9 @@ const SEL_SEND_BUTTON = 'button[aria-label*="Send"]';
 
 /** Fallback: mat-icon-button with a send icon near the input */
 const SEL_SEND_BUTTON_FALLBACK = 'button.send-button';
+
+const RESPONSE_CONTAINER_SELECTOR = 'model-response';
+const STREAMING_INDICATOR_SELECTOR = '.loading-indicator';
 
 // ─────────────────────────────────────────────
 // Adapter implementation
@@ -135,5 +139,26 @@ export const geminiAdapter: SiteAdapter = {
 
     trySubmit();
   },
-};
 
+  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+
+    const container = await pollUntil(
+      () => {
+        const all = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
+        return all.length > 0 ? (all[all.length - 1] as HTMLElement) : null;
+      },
+      deadline,
+      300,
+    );
+    if (!container) throw new Error("No response appeared");
+
+    await pollUntil(
+      () => !document.querySelector(STREAMING_INDICATOR_SELECTOR),
+      deadline,
+      500,
+    );
+
+    return container.innerText.trim();
+  },
+};

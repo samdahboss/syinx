@@ -15,12 +15,20 @@ import type { SiteId } from "./messaging";
 // Schema
 // ─────────────────────────────────────────────
 
+export interface CapturedResponse {
+  siteId: SiteId;
+  text: string;
+  capturedAt: number;
+  error?: string;
+}
+
 export interface PromptHistoryEntry {
   /** UUID v4 */
   id: string;
   prompt: string;
   targets: SiteId[];
   timestamp: number; // Unix ms
+  responses?: CapturedResponse[];
 }
 
 export interface Settings {
@@ -82,4 +90,20 @@ export async function updateSettings(partial: Partial<Settings>): Promise<Settin
   const updated = { ...current, ...partial };
   await setSettings(updated);
   return updated;
+}
+
+/**
+ * Appends a captured response to an existing history entry.
+ * Called by the background worker when a RESPONSE_CAPTURED arrives.
+ */
+export async function addResponseToEntry(
+  sessionId: string,
+  response: CapturedResponse,
+): Promise<void> {
+  const entries = await getHistory();
+  const idx = entries.findIndex((e) => e.id === sessionId);
+  if (idx === -1) return; // Session may have been evicted; silently ignore.
+  const entry = entries[idx];
+  entry.responses = [...(entry.responses ?? []), response];
+  await setHistory(entries);
 }

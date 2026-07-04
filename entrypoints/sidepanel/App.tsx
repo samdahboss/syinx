@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import type { SiteId, SiteResult, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import { getSettings } from "@@/lib/storage";
+import { generateId } from "@@/lib/history";
+import { renderMarkdown } from "@@/lib/markdown";
 
 // ─────────────────────────────────────────────
 // Types
@@ -10,8 +12,9 @@ import { getSettings } from "@@/lib/storage";
 type Theme = "dark" | "light";
 
 interface Session {
+  id: string;
   prompt: string;
-  results: SiteResult[];
+  results: (SiteResult & { response?: string })[];
   startedAt: Date;
 }
 
@@ -108,6 +111,38 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
 }
 
 // ─────────────────────────────────────────────
+// Response View (Expand-in-place)
+// ─────────────────────────────────────────────
+
+function ResponseView({ response, siteId }: { response: string; siteId: SiteId }) {
+  const [expanded, setExpanded] = useState(false);
+  const { color } = SITE_META[siteId];
+
+  if (!response) return null;
+
+  return (
+    <div className="mt-2 text-[11px] bg-white dark:bg-[#0f1117] border border-black/10 dark:border-white/10 rounded-sm overflow-hidden relative">
+      <div
+        className={`prose p-2.5 transition-all duration-300 ${
+          !expanded ? "max-h-32 overflow-hidden" : ""
+        }`}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
+      />
+      {!expanded && (
+        <div className="absolute bottom-6 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-[#0f1117] to-transparent pointer-events-none" />
+      )}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-center py-1.5 text-[9px] font-bold uppercase tracking-wider bg-black/3 dark:bg-white/3 hover:bg-black/5 dark:hover:bg-white/5 border-t border-black/5 dark:border-white/5 transition-colors"
+        style={{ color }}
+      >
+        {expanded ? "Collapse" : "Read Full Response"}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Site Toggle
 // ─────────────────────────────────────────────
 
@@ -168,30 +203,42 @@ export default function App() {
   useEffect(() => {
     const listener = (message: unknown) => {
       const msg = message as ExtensionMessage;
-      if (msg.type !== "PROGRESS_UPDATE") return;
+      
+      if (msg.type === "PROGRESS_UPDATE") {
+        setSessions((prev) => {
+          const existingIdx = prev.findIndex((s) => s.id === msg.sessionId);
+          if (existingIdx === -1) {
+            return [...prev, { id: msg.sessionId, prompt: "", results: msg.results, startedAt: new Date() }];
+          }
+          const updated = [...prev];
+          // Preserve existing responses when updating results
+          const existingResults = updated[existingIdx].results;
+          const newResults = msg.results.map((r) => {
+            const existing = existingResults.find((er) => er.siteId === r.siteId);
+            return { ...r, response: existing?.response };
+          });
+          updated[existingIdx] = { ...updated[existingIdx], results: newResults };
+          return updated;
+        });
+        setIsSending(!msg.results.every((r) => r.status === "success" || r.status === "error"));
+      }
 
-      setSessions((prev) => {
-        // If no session yet, or the last session is finished, start a new one
-        if (prev.length === 0) {
-          return [{ prompt: "", results: msg.results, startedAt: new Date() }];
-        }
-        const last = prev[prev.length - 1];
-        const lastDone = last.results.every((r) => r.status === "success" || r.status === "error");
+      if (msg.type === "RESPONSE_UPDATE") {
+        setSessions((prev) => {
+          const existingIdx = prev.findIndex((s) => s.id === msg.sessionId);
+          if (existingIdx === -1) return prev;
+          
+          const updated = [...prev];
+          const session = updated[existingIdx];
+          const rIdx = session.results.findIndex((r) => r.siteId === msg.siteId);
+          if (rIdx === -1) return prev;
 
-        // A new run started (results reset to pending) — create a new session
-        const allPending = msg.results.every((r) => r.status === "pending");
-        if (lastDone && allPending) {
-          return [...prev, { prompt: "", results: msg.results, startedAt: new Date() }];
-        }
-
-        // Otherwise merge results into the last session
-        const updated = [...prev];
-        const updatedSession = { ...last, results: msg.results };
-        updated[updated.length - 1] = updatedSession;
-        return updated;
-      });
-
-      setIsSending(!msg.results.every((r) => r.status === "success" || r.status === "error"));
+          const results = [...session.results];
+          results[rIdx] = { ...results[rIdx], response: msg.response };
+          updated[existingIdx] = { ...session, results };
+          return updated;
+        });
+      }
     };
 
     chrome.runtime.onMessage.addListener(listener);
@@ -227,6 +274,7 @@ export default function App() {
       siteId,
       prompt,
       autoSubmit: settings.autoSubmit,
+      sessionId: lastSession.id,
     } as ExtensionMessage);
   }
 
@@ -237,10 +285,11 @@ export default function App() {
 
     const settings = await getSettings();
     const targets = followUpTargets;
+    const sessionId = generateId();
 
     setSessions((prev) => [
       ...prev,
-      { prompt: followUp.trim(), results: targets.map((id) => ({ siteId: id, status: "pending" })), startedAt: new Date() },
+      { id: sessionId, prompt: followUp.trim(), results: targets.map((id) => ({ siteId: id, status: "pending" })), startedAt: new Date() },
     ]);
 
     try {
@@ -250,6 +299,7 @@ export default function App() {
         targets,
         autoSubmit: settings.autoSubmit,
         isFollowUp: true,
+        sessionId,
       });
       setFollowUp("");
     } catch (e) {
@@ -388,6 +438,9 @@ export default function App() {
                           )}
                         </div>
                       )}
+
+                      {/* Response view */}
+                      {r.response && <ResponseView response={r.response} siteId={r.siteId} />}
                     </div>
                   );
                 })}

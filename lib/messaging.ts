@@ -33,11 +33,13 @@ export type ExtensionMessage =
     targets: SiteId[];
     autoSubmit: boolean;
     isFollowUp: boolean;
+    sessionId: string;
   }
   | {
     type: "INJECT_PROMPT";
     prompt: string;
     autoSubmit: boolean;
+    sessionId: string;
   }
   | {
     type: "CONTENT_SCRIPT_READY";
@@ -52,11 +54,26 @@ export type ExtensionMessage =
   | {
     type: "PROGRESS_UPDATE";
     results: SiteResult[];
+    sessionId: string;
   }
   | { type: "PING" }
   | { type: "PONG" }
-  | { type: "RETRY_PROMPT"; siteId: SiteId; prompt: string; autoSubmit: boolean }
-  | { type: "TRIGGER_COMMAND"; command: "send-to-chatgpt" | "send-to-claude" | "send-to-gemini" | "sync-prompts" };
+  | { type: "RETRY_PROMPT"; siteId: SiteId; prompt: string; autoSubmit: boolean; sessionId: string }
+  | { type: "TRIGGER_COMMAND"; command: "send-to-chatgpt" | "send-to-claude" | "send-to-gemini" | "sync-prompts" }
+  | {
+    type: "RESPONSE_CAPTURED";
+    siteId: SiteId;
+    response: string;
+    sessionId: string;
+    error?: string;
+  }
+  | {
+    type: "RESPONSE_UPDATE";
+    siteId: SiteId;
+    response: string;
+    sessionId: string;
+    error?: string;
+  };
 
 /**
  * Response shape the background sends back after a SEND_PROMPT.
