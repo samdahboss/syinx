@@ -59,7 +59,7 @@ export default defineContentScript({
             success = true;
           } catch (e) {
             error = e instanceof Error ? e.message : String(e);
-            console.error("[PromptSync] ChatGPT injection failed:", error);
+            console.error("[Syinx] ChatGPT injection failed:", error);
           }
 
           sendResponse({

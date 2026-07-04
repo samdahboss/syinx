@@ -64,7 +64,7 @@ export default function App() {
         <div className="w-6 h-6 rounded-md bg-brand-500 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-brand-900/40">
           P
         </div>
-        <h1 className="text-sm font-semibold text-white tracking-tight">PromptSync</h1>
+        <h1 className="text-sm font-semibold text-white tracking-tight">Syinx</h1>
       </header>
 
       {/* ── Progress Content ── */}

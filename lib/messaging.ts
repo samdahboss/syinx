@@ -6,7 +6,7 @@
  * Never send raw untyped objects — always cast through ExtensionMessage.
  */
 
-/** The three site IDs supported by PromptSync v1. */
+/** The three site IDs supported by Syinx v1. */
 export type SiteId = "chatgpt" | "claude" | "gemini";
 
 export type SiteStatus = "idle" | "pending" | "success" | "error";
@@ -28,31 +28,31 @@ export interface SiteResult {
  */
 export type ExtensionMessage =
   | {
-      type: "SEND_PROMPT";
-      prompt: string;
-      targets: SiteId[];
-      autoSubmit: boolean;
-      isFollowUp: boolean;
-    }
+    type: "SEND_PROMPT";
+    prompt: string;
+    targets: SiteId[];
+    autoSubmit: boolean;
+    isFollowUp: boolean;
+  }
   | {
-      type: "INJECT_PROMPT";
-      prompt: string;
-      autoSubmit: boolean;
-    }
+    type: "INJECT_PROMPT";
+    prompt: string;
+    autoSubmit: boolean;
+  }
   | {
-      type: "CONTENT_SCRIPT_READY";
-      siteId: SiteId;
-    }
+    type: "CONTENT_SCRIPT_READY";
+    siteId: SiteId;
+  }
   | {
-      type: "INJECT_RESULT";
-      siteId: SiteId;
-      success: boolean;
-      error?: string;
-    }
+    type: "INJECT_RESULT";
+    siteId: SiteId;
+    success: boolean;
+    error?: string;
+  }
   | {
-      type: "PROGRESS_UPDATE";
-      results: SiteResult[];
-    }
+    type: "PROGRESS_UPDATE";
+    results: SiteResult[];
+  }
   | { type: "PING" }
   | { type: "PONG" };
 

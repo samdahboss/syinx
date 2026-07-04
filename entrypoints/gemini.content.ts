@@ -53,7 +53,7 @@ export default defineContentScript({
             success = true;
           } catch (e) {
             error = e instanceof Error ? e.message : String(e);
-            console.error("[PromptSync] Gemini injection failed:", error);
+            console.error("[Syinx] Gemini injection failed:", error);
           }
 
           sendResponse({

@@ -46,7 +46,7 @@ export default defineContentScript({
             success = true;
           } catch (e) {
             error = e instanceof Error ? e.message : String(e);
-            console.error("[PromptSync] Claude injection failed:", error);
+            console.error("[Syinx] Claude injection failed:", error);
           }
 
           sendResponse({

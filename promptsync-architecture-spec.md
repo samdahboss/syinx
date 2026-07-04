@@ -1,6 +1,6 @@
-# PromptSync — Technical Specification & Build Plan
+# Syinx — Technical Specification & Build Plan
 
-> Working name: **PromptSync** (rename freely). This document is written to be handed directly to a coding agent to scaffold and build the project. It specifies scope, architecture, file structure, and build order in enough detail that no additional product decisions should be needed to get a working v1.
+> Working name: **Syinx** (rename freely). This document is written to be handed directly to a coding agent to scaffold and build the project. It specifies scope, architecture, file structure, and build order in enough detail that no additional product decisions should be needed to get a working v1.
 
 ---
 
@@ -9,12 +9,13 @@
 Users who regularly consult multiple AI chat products (ChatGPT, Claude, Gemini) keep them open in separate browser tabs and manually copy-paste the same prompt into each one, losing time and context on every comparison.
 
 An existing product, **ChatHub**, solves a version of this but has documented user complaints (from Chrome Web Store reviews):
+
 - Free tier limited to 2 models and capped queries; full functionality requires a $19–39/month subscription.
 - Model integrations (DeepSeek, Gemini, Perplexity) reported as breaking periodically.
 - Requires either a paid backend relay or the user's own API keys for many models.
 - Membership/session has to be re-activated when switching browsers.
 
-**PromptSync's differentiation:** a free, open-source extension that syncs a single prompt into the user's *already-authenticated* native web tabs (chatgpt.com, claude.ai, gemini.google.com) — no API keys, no backend relay, no subscription, no data ever leaving the browser. It rides the user's existing logged-in sessions rather than proxying through a paid service.
+**Syinx's differentiation:** a free, open-source extension that syncs a single prompt into the user's _already-authenticated_ native web tabs (chatgpt.com, claude.ai, gemini.google.com) — no API keys, no backend relay, no subscription, no data ever leaving the browser. It rides the user's existing logged-in sessions rather than proxying through a paid service.
 
 ---
 
@@ -75,15 +76,15 @@ No backend server exists anywhere in this system. The service worker is purely a
 
 ## 6. Tech Stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Extension framework | **WXT** (`wxt.dev`) | Handles MV3 manifest generation, HMR during dev, and packaging. Far less boilerplate than hand-rolled MV3. |
-| UI | **React + TypeScript** | Matches existing skill set; WXT has first-class React support. |
-| Styling | **Tailwind CSS** | Fast to build a clean popup UI. |
-| Storage | `chrome.storage.local` (via WXT's `storage` utility) | No backend; all data stays on-device. |
-| Messaging | `chrome.runtime` / `chrome.tabs` message passing | Standard MV3 pattern, no external libraries needed. |
-| Testing | **Vitest** for unit tests on adapter logic; manual QA checklist for DOM injection (DOM structure of third-party sites can't be reliably unit-tested) | |
-| Linting/formatting | ESLint + Prettier | Standard, keeps the open-source repo clean for contributors. |
+| Layer               | Choice                                                                                                                                               | Why                                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Extension framework | **WXT** (`wxt.dev`)                                                                                                                                  | Handles MV3 manifest generation, HMR during dev, and packaging. Far less boilerplate than hand-rolled MV3. |
+| UI                  | **React + TypeScript**                                                                                                                               | Matches existing skill set; WXT has first-class React support.                                             |
+| Styling             | **Tailwind CSS**                                                                                                                                     | Fast to build a clean popup UI.                                                                            |
+| Storage             | `chrome.storage.local` (via WXT's `storage` utility)                                                                                                 | No backend; all data stays on-device.                                                                      |
+| Messaging           | `chrome.runtime` / `chrome.tabs` message passing                                                                                                     | Standard MV3 pattern, no external libraries needed.                                                        |
+| Testing             | **Vitest** for unit tests on adapter logic; manual QA checklist for DOM injection (DOM structure of third-party sites can't be reliably unit-tested) |                                                                                                            |
+| Linting/formatting  | ESLint + Prettier                                                                                                                                    | Standard, keeps the open-source repo clean for contributors.                                               |
 
 Verify current WXT CLI flags against `wxt.dev` docs before running — framework tooling changes over time and I can't guarantee the exact command syntax below is current.
 
@@ -92,7 +93,7 @@ Verify current WXT CLI flags against `wxt.dev` docs before running — framework
 ## 7. Project Structure
 
 ```
-promptsync/
+Syinx/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # lint + typecheck + unit tests on PR
@@ -146,22 +147,24 @@ Key manifest fields WXT should generate:
 ```ts
 export default defineConfig({
   manifest: {
-    name: "PromptSync",
-    description: "Send one prompt to ChatGPT, Claude, and Gemini at once — free, open-source, no API keys, nothing leaves your browser.",
+    name: "Syinx",
+    description:
+      "Send one prompt to ChatGPT, Claude, and Gemini at once — free, open-source, no API keys, nothing leaves your browser.",
     permissions: ["storage", "tabs"],
     host_permissions: [
       "https://chatgpt.com/*",
       "https://claude.ai/*",
-      "https://gemini.google.com/*"
+      "https://gemini.google.com/*",
     ],
     action: {
-      default_popup: "popup/index.html"
-    }
-  }
+      default_popup: "popup/index.html",
+    },
+  },
 });
 ```
 
 Notes:
+
 - `host_permissions` is the minimal set — do not request `<all_urls>`. This matters both for review approval speed and for the "we only touch what we say we touch" privacy pitch.
 - No `activeTab`-only approach here, because the extension needs to act on tabs the user hasn't necessarily clicked into (opening/focusing a ChatGPT tab from the popup) — hence explicit host permissions instead.
 
@@ -172,6 +175,7 @@ Notes:
 ### 9.1 Background Service Worker (`entrypoints/background.ts`)
 
 Responsibilities:
+
 1. Listen for a `SEND_PROMPT` message from the popup containing `{ prompt: string, targets: SiteId[] }`.
 2. For each target site:
    - Query open tabs matching that site's URL pattern (`chrome.tabs.query`).
@@ -186,11 +190,13 @@ Edge case to handle explicitly: if a newly-opened tab's content script isn't rea
 ### 9.2 Content Scripts / Site Adapters
 
 Each site gets its own content script entrypoint (WXT supports per-match-pattern entrypoints) that:
+
 1. On load, sends `CONTENT_SCRIPT_READY` to the background worker.
 2. Listens for `INJECT_PROMPT` messages.
 3. Delegates the actual DOM manipulation to a shared adapter module (`lib/adapters/*.adapter.ts`) implementing a common interface — this keeps the "find the input box and submit" logic testable and separated from the messaging plumbing.
 
 **`lib/adapters/types.ts`:**
+
 ```ts
 export interface SiteAdapter {
   siteId: "chatgpt" | "claude" | "gemini";
@@ -204,6 +210,7 @@ export interface SiteAdapter {
 ```
 
 **Important implementation note for the agent:** ChatGPT, Claude, and Gemini all use React/rich-text-editor-style input fields (often `contenteditable` divs, not plain `<textarea>`), so naively setting `.value` or `.innerText` will not update the site's internal framework state, and the send button will stay disabled. The reliable pattern is:
+
 1. Focus the element.
 2. Use the native `execCommand('insertText', ...)` approach, or dispatch a proper `InputEvent` (`new InputEvent('input', { bubbles: true, inputType: 'insertText', data: prompt })`) after setting the content, so React's synthetic event system picks up the change.
 3. As a fallback, simulate individual `keydown`/`keypress`/`keyup` events per character if the InputEvent approach doesn't register (slower but more robust against frameworks that specifically listen for real keystrokes).
@@ -213,6 +220,7 @@ export interface SiteAdapter {
 ### 9.3 Popup UI (`entrypoints/popup/`)
 
 Components:
+
 - **`PromptInput.tsx`** — textarea + "Send" button.
 - **`SiteToggleList.tsx`** — checkbox per site (ChatGPT / Claude / Gemini), persisted to storage as default selection.
 - **`HistoryList.tsx`** — last 20 prompts from storage, each with a "resend" button and timestamp.
@@ -224,7 +232,7 @@ State management: plain React `useState`/`useEffect` is sufficient at this scope
 
 ```ts
 interface PromptHistoryEntry {
-  id: string;           // uuid
+  id: string; // uuid
   prompt: string;
   targets: SiteId[];
   timestamp: number;
@@ -256,17 +264,17 @@ type ExtensionMessage =
 
 ## 11. Permissions Justification (for Chrome Web Store review)
 
-| Permission | Justification to write in the listing |
-|---|---|
-| `storage` | Store prompt history and settings locally on the user's device; never transmitted anywhere. |
-| `tabs` | Detect whether a ChatGPT/Claude/Gemini tab is already open, and switch to or open one, when the user sends a prompt. |
+| Permission                   | Justification to write in the listing                                                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `storage`                    | Store prompt history and settings locally on the user's device; never transmitted anywhere.                                                                                                                        |
+| `tabs`                       | Detect whether a ChatGPT/Claude/Gemini tab is already open, and switch to or open one, when the user sends a prompt.                                                                                               |
 | `host_permissions` (3 sites) | Required to insert the user's typed prompt into that site's own input box on the user's behalf. No data from these pages is read, stored, or transmitted — the extension only writes the prompt text it was given. |
 
 ---
 
 ## 12. Build Order for the Agent
 
-1. Scaffold with WXT (`npx wxt@latest init promptsync` — choose the React template; verify current flags in WXT docs since CLI options change).
+1. Scaffold with WXT (`npx wxt@latest init Syinx` — choose the React template; verify current flags in WXT docs since CLI options change).
 2. Set up Tailwind, ESLint, Prettier, TypeScript strict mode.
 3. Build `lib/messaging.ts` types first — everything else depends on this contract.
 4. Build `lib/storage.ts` + `lib/history.ts` with unit tests.

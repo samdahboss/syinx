@@ -17,12 +17,15 @@ export default defineConfig({
       "https://gemini.google.com/*",
     ],
     icons: {
-      "128": "syinx_logo.png"
+      "16": "/icon-16.png",
+      "48": "/icon-48.png",
+      "128": "/icon-128.png"
     },
     action: {
-      default_popup: "",
       default_icon: {
-        "128": "syinx_logo.png"
+        "16": "/icon-16.png",
+        "48": "/icon-48.png",
+        "128": "/icon-128.png"
       }
     },
     commands: {

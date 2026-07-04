@@ -1,16 +1,19 @@
-# Contributing to PromptSync
+# Contributing to Syinx
 
-Thank you for helping keep PromptSync working!
+Thank you for helping keep Syinx working!
 
 ## The Most Needed Contribution: Fixing a Broken Adapter
 
 ChatGPT, Claude, and Gemini update their UI regularly. When they do, the adapter for that site breaks. Here's how to fix it in under 10 minutes:
 
 ### 1. Open the site in Chrome DevTools
+
 Press F12, go to the **Elements** tab, and find the prompt input box.
 
 ### 2. Find a stable selector
+
 Prefer (in order of stability):
+
 - `aria-label` attributes
 - `data-testid` attributes
 - `role` attributes (`role="textbox"`)
@@ -21,19 +24,22 @@ Prefer (in order of stability):
 
 Each adapter has selector constants at the very top of its file — that's the only place you need to change:
 
-| Site | Adapter file |
-|---|---|
+| Site    | Adapter file                      |
+| ------- | --------------------------------- |
 | ChatGPT | `lib/adapters/chatgpt.adapter.ts` |
-| Claude | `lib/adapters/claude.adapter.ts` |
-| Gemini | `lib/adapters/gemini.adapter.ts` |
+| Claude  | `lib/adapters/claude.adapter.ts`  |
+| Gemini  | `lib/adapters/gemini.adapter.ts`  |
 
 Look for the `SEL_INPUT` and `SEL_SEND_BUTTON` constants at the top.
 
 ### 4. Test it
+
 Load the extension unpacked and try sending a prompt to the affected site.
 
 ### 5. Submit a PR
+
 Include:
+
 - Which selector broke
 - What the new selector is
 - How you verified it (screenshot of DevTools welcome)
