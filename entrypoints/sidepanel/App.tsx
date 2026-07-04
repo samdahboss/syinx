@@ -286,7 +286,12 @@ export default function App() {
           if (rIdx === -1) return prev;
 
           const results = [...session.results];
-          results[rIdx] = { ...results[rIdx], response: msg.response };
+          results[rIdx] = { 
+            ...results[rIdx], 
+            response: msg.response,
+            status: msg.error ? "error" : "success",
+            error: msg.error
+          };
           updated[existingIdx] = { ...session, results };
           return updated;
         });
