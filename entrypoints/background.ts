@@ -47,7 +47,7 @@ export default defineBackground(() => {
         try {
           await addHistoryEntry(msg.prompt, msg.targets);
         } catch (e) {
-          console.warn("[PromptSync] Failed to save history entry:", e);
+          console.warn("[Syinx] Failed to save history entry:", e);
         }
 
         const results: SiteResult[] = msg.targets.map(id => ({ siteId: id, status: "pending" }));
@@ -111,7 +111,7 @@ export default defineBackground(() => {
               await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]], groupId: currentGroupId });
             } else {
               currentGroupId = await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]] });
-              await chrome.tabGroups.update(currentGroupId, { title: "PromptSync", color: "blue" });
+              await chrome.tabGroups.update(currentGroupId, { title: "Syinx", color: "blue" });
             }
           } catch (e) {
             console.warn("Failed to group tabs:", e);
@@ -173,7 +173,7 @@ async function waitForContentScript(
       // is still loading — suppress it and keep polling.
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.includes("Receiving end does not exist")) {
-        console.warn("[PromptSync] Unexpected ping error:", e);
+        console.warn("[Syinx] Unexpected ping error:", e);
       }
     }
     await delay(pollMs);

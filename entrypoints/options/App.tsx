@@ -143,7 +143,7 @@ export default function App() {
                 <path d="M2 8h5M9 4l4 4-4 4" stroke={theme === "dark" ? "black" : "white"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <span className="text-sm font-bold tracking-widest uppercase">PromptSync</span>
+            <span className="text-sm font-bold tracking-widest uppercase">Syinx</span>
           </div>
 
           {/* Right side: tabs + theme toggle */}
@@ -237,7 +237,7 @@ export default function App() {
 
       {/* ── Footer ── */}
       <footer className="max-w-3xl mx-auto px-8 py-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between">
-        <span className="text-xs text-black/25 dark:text-white/25 uppercase tracking-widest font-semibold">PromptSync v0.1.0</span>
+        <span className="text-xs text-black/25 dark:text-white/25 uppercase tracking-widest font-semibold">Syinx v0.1.0</span>
         <span className="text-xs text-black/25 dark:text-white/25">Free · Open Source · No API Keys</span>
       </footer>
     </div>
