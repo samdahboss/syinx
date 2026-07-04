@@ -43,6 +43,7 @@ export default defineContentScript({
               throw new Error("Could not find Gemini input element after waiting 30s");
             }
 
+            const priorCount = geminiAdapter.getPriorResponseCount();
             geminiAdapter.insertPrompt(el, msg.prompt);
 
             if (msg.autoSubmit) {
@@ -53,7 +54,7 @@ export default defineContentScript({
               // Fire-and-forget: capture response asynchronously
               void (async () => {
                 try {
-                  const response = await geminiAdapter.waitForResponse(120_000);
+                  const response = await geminiAdapter.waitForResponse(priorCount, 120_000);
                   chrome.runtime.sendMessage({
                     type: "RESPONSE_CAPTURED",
                     siteId: geminiAdapter.siteId,

@@ -36,6 +36,7 @@ export default defineContentScript({
             const el = await waitForElement(() => claudeAdapter.findInputElement(), 30_000);
             if (!el) throw new Error("Could not find Claude input element after waiting 30s");
 
+            const priorCount = claudeAdapter.getPriorResponseCount();
             claudeAdapter.insertPrompt(el, msg.prompt);
 
             if (msg.autoSubmit) {
@@ -46,7 +47,7 @@ export default defineContentScript({
               // Fire-and-forget: capture response asynchronously
               void (async () => {
                 try {
-                  const response = await claudeAdapter.waitForResponse(120_000);
+                  const response = await claudeAdapter.waitForResponse(priorCount, 120_000);
                   chrome.runtime.sendMessage({
                     type: "RESPONSE_CAPTURED",
                     siteId: claudeAdapter.siteId,

@@ -48,6 +48,7 @@ export default defineContentScript({
               throw new Error("Could not find ChatGPT input element after waiting 30s");
             }
 
+            const priorCount = chatgptAdapter.getPriorResponseCount();
             chatgptAdapter.insertPrompt(el, msg.prompt);
 
             if (msg.autoSubmit) {
@@ -58,7 +59,7 @@ export default defineContentScript({
               // Fire-and-forget: capture response asynchronously
               void (async () => {
                 try {
-                  const response = await chatgptAdapter.waitForResponse(120_000);
+                  const response = await chatgptAdapter.waitForResponse(priorCount, 120_000);
                   chrome.runtime.sendMessage({
                     type: "RESPONSE_CAPTURED",
                     siteId: chatgptAdapter.siteId,

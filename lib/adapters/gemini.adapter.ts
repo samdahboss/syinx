@@ -140,13 +140,17 @@ export const geminiAdapter: SiteAdapter = {
     trySubmit();
   },
 
-  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+  getPriorResponseCount(): number {
+    return document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR).length;
+  },
+
+  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
     const container = await pollUntil(
       () => {
         const all = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
-        return all.length > 0 ? (all[all.length - 1] as HTMLElement) : null;
+        return all.length > priorCount ? (all[all.length - 1] as HTMLElement) : null;
       },
       deadline,
       300,
@@ -159,6 +163,8 @@ export const geminiAdapter: SiteAdapter = {
       500,
     );
 
-    return container.innerText.trim();
+    // Extract text specifically from .message-content to avoid "Searching the web" placeholders
+    const messageContent = container.querySelector('.message-content') as HTMLElement;
+    return (messageContent || container).innerText.trim();
   },
 };

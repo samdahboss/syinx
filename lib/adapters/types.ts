@@ -31,6 +31,12 @@ export interface SiteAdapter {
   submit(el: HTMLElement): void;
 
   /**
+   * Returns the number of response containers currently on the page.
+   * Useful for distinguishing a new response from a previous one when following up.
+   */
+  getPriorResponseCount(): number;
+
+  /**
    * Waits for the AI response to complete streaming and returns the full text.
    *
    * Implementation contract:
@@ -39,9 +45,10 @@ export interface SiteAdapter {
    *   3. Resolve with the final plain-text response content.
    *   4. Reject with an Error after `timeoutMs` milliseconds if no response appears.
    *
+   * @param priorCount The number of responses that existed before submission.
    * @param timeoutMs  Maximum wait time in ms. Default: 120_000 (2 minutes).
    */
-  waitForResponse(timeoutMs?: number): Promise<string>;
+  waitForResponse(priorCount: number, timeoutMs?: number): Promise<string>;
 }
 
 /**

@@ -77,6 +77,18 @@ function SendIcon() {
   );
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+      className={`w-3 h-3 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+    >
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  );
+}
+
 // ─────────────────────────────────────────────
 // Status Badge
 // ─────────────────────────────────────────────
@@ -186,7 +198,19 @@ export default function App() {
   const [followUpTargets, setFollowUpTargets] = useState<SiteId[]>(["chatgpt", "claude", "gemini"]);
   const [isSending, setIsSending] = useState(false);
   const [theme, setTheme] = useState<Theme>("dark");
+  const [collapsedSessions, setCollapsedSessions] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ── Auto-collapse older sessions when a new one is added ────────────────
+  useEffect(() => {
+    if (sessions.length > 1) {
+      const newCollapsed = new Set<string>();
+      for (let i = 0; i < sessions.length - 1; i++) {
+        newCollapsed.add(sessions[i].id);
+      }
+      setCollapsedSessions(newCollapsed);
+    }
+  }, [sessions.length]);
 
   // ── Load theme ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -372,88 +396,108 @@ export default function App() {
             </button>
           </div>
         ) : (
-          sessions.map((session, si) => (
-            <div key={si} className="flex flex-col gap-2">
-              {/* Session header */}
-              <div className="flex items-center justify-between">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/25 dark:text-white/25">
-                  {si === 0 ? "Session" : `Follow-up ${si}`}
-                </p>
-                <p className="text-[9px] text-black/20 dark:text-white/20">
-                  {session.startedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
+          sessions.map((session, si) => {
+            const isCollapsed = collapsedSessions.has(session.id);
+            return (
+              <div key={si} className="flex flex-col gap-2">
+                {/* Session header */}
+                <div 
+                  className="flex items-center justify-between cursor-pointer group py-1"
+                  onClick={() => {
+                    setCollapsedSessions((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(session.id)) next.delete(session.id);
+                      else next.add(session.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <ChevronIcon expanded={!isCollapsed} />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors">
+                      {si === 0 ? "Session" : `Follow-up ${si}`}
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-black/20 dark:text-white/20 group-hover:text-black/40 dark:group-hover:text-white/40 transition-colors">
+                    {session.startedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
 
-              {/* Prompt preview */}
-              {session.prompt && (
-                <p className="text-[11px] text-black/50 dark:text-white/40 italic truncate px-2.5 py-1.5 bg-black/3 dark:bg-white/3 rounded-sm border border-black/5 dark:border-white/5">
-                  "{session.prompt}"
-                </p>
-              )}
+                {!isCollapsed && (
+                  <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Prompt preview */}
+                    {session.prompt && (
+                      <p className="text-[11px] text-black/50 dark:text-white/40 italic truncate px-2.5 py-1.5 bg-black/3 dark:bg-white/3 rounded-sm border border-black/5 dark:border-white/5">
+                        "{session.prompt}"
+                      </p>
+                    )}
 
-              {/* Per-site result cards */}
-              <div className="flex flex-col gap-1.5">
-                {session.results.map((r) => {
-                  const meta = SITE_META[r.siteId];
-                  const isLast = si === sessions.length - 1;
-                  return (
-                    <div
-                      key={r.siteId}
-                      className={`flex flex-col gap-1.5 px-3 py-2.5 rounded-md border transition-all duration-200 ${
-                        r.status === "error"
-                          ? "bg-red-500/3 dark:bg-red-500/5 border-red-500/15 dark:border-red-500/20"
-                          : r.status === "success"
-                          ? "bg-emerald-500/3 dark:bg-emerald-500/5 border-emerald-500/10 dark:border-emerald-500/15"
-                          : "bg-black/2 dark:bg-white/2 border-black/8 dark:border-white/8"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                            style={{ backgroundColor: meta.color }}
+                    {/* Per-site result cards */}
+                    <div className="flex flex-row overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-3 pb-2 -mx-4 px-4">
+                      {session.results.map((r) => {
+                        const meta = SITE_META[r.siteId];
+                        const isLast = si === sessions.length - 1;
+                        return (
+                          <div
+                            key={r.siteId}
+                            className={`w-[85%] shrink-0 snap-center flex flex-col gap-1.5 px-3 py-2.5 rounded-md border transition-all duration-200 ${
+                              r.status === "error"
+                                ? "bg-red-500/3 dark:bg-red-500/5 border-red-500/15 dark:border-red-500/20"
+                                : r.status === "success"
+                                ? "bg-emerald-500/3 dark:bg-emerald-500/5 border-emerald-500/10 dark:border-emerald-500/15"
+                                : "bg-black/2 dark:bg-white/2 border-black/8 dark:border-white/8"
+                            }`}
                           >
-                            {meta.initial}
-                          </span>
-                          <span className="text-xs font-semibold tracking-wide">{meta.label}</span>
-                        </div>
-                        <StatusBadge status={r.status} />
-                      </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                                  style={{ backgroundColor: meta.color }}
+                                >
+                                  {meta.initial}
+                                </span>
+                                <span className="text-xs font-semibold tracking-wide">{meta.label}</span>
+                              </div>
+                              <StatusBadge status={r.status} />
+                            </div>
 
-                      {/* Error + Retry */}
-                      {r.status === "error" && (
-                        <div className="flex items-start justify-between gap-2 pl-7">
-                          <p className="text-[10px] text-red-500 dark:text-red-400 leading-relaxed flex-1">
-                            {r.error ?? "Unknown error"}
-                          </p>
-                          {isLast && (
-                            <button
-                              id={`retry-${r.siteId}-btn`}
-                              onClick={() => void handleRetry(r.siteId)}
-                              className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border border-black/15 dark:border-white/15 rounded-full text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 shrink-0"
-                            >
-                              <RetryIcon />
-                              Retry
-                            </button>
-                          )}
-                        </div>
-                      )}
+                            {/* Error + Retry */}
+                            {r.status === "error" && (
+                              <div className="flex items-start justify-between gap-2 pl-7">
+                                <p className="text-[10px] text-red-500 dark:text-red-400 leading-relaxed flex-1">
+                                  {r.error ?? "Unknown error"}
+                                </p>
+                                {isLast && (
+                                  <button
+                                    id={`retry-${r.siteId}-btn`}
+                                    onClick={() => void handleRetry(r.siteId)}
+                                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border border-black/15 dark:border-white/15 rounded-full text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 shrink-0"
+                                  >
+                                    <RetryIcon />
+                                    Retry
+                                  </button>
+                                )}
+                              </div>
+                            )}
 
-                      {/* Response view */}
-                      {r.response && <ResponseView response={r.response} siteId={r.siteId} />}
+                            {/* Response view */}
+                            {r.response && <ResponseView response={r.response} siteId={r.siteId} />}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Summary line */}
-              {session.results.every((r) => r.status === "success" || r.status === "error") && (
-                <p className="text-[9px] text-black/25 dark:text-white/25 uppercase tracking-widest text-right">
-                  {session.results.filter((r) => r.status === "success").length}/{session.results.length} succeeded
-                </p>
-              )}
-            </div>
-          ))
+                    {/* Summary line */}
+                    {session.results.every((r) => r.status === "success" || r.status === "error") && (
+                      <p className="text-[9px] text-black/25 dark:text-white/25 uppercase tracking-widest text-right mt-1">
+                        {session.results.filter((r) => r.status === "success").length}/{session.results.length} succeeded
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
         <div ref={bottomRef} />
       </main>

@@ -116,14 +116,18 @@ export const chatgptAdapter: SiteAdapter = {
     el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
   },
 
-  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+  getPriorResponseCount(): number {
+    return document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR).length;
+  },
+
+  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
-    // Step 1: Wait until at least one assistant message container appears.
+    // Step 1: Wait until a NEW assistant message container appears.
     const container = await pollUntil(
       () => {
         const all = document.querySelectorAll(RESPONSE_CONTAINER_SELECTOR);
-        return all.length > 0 ? (all[all.length - 1] as HTMLElement) : null;
+        return all.length > priorCount ? (all[all.length - 1] as HTMLElement) : null;
       },
       deadline,
       300,

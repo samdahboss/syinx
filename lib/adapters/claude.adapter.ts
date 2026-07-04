@@ -109,7 +109,11 @@ export const claudeAdapter: SiteAdapter = {
     );
   },
 
-  async waitForResponse(timeoutMs = 120_000): Promise<string> {
+  getPriorResponseCount(): number {
+    return 0; // Claude waits for [data-is-streaming] which only appears for the new response, so priorCount isn't strictly needed.
+  },
+
+  async waitForResponse(priorCount: number, timeoutMs = 120_000): Promise<string> {
     const deadline = Date.now() + timeoutMs;
 
     // Wait for a response element to appear
