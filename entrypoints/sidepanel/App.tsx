@@ -133,14 +133,33 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
   return null;
 }
 
-function FocusModal({ response, siteId, onClose }: { response: string; siteId: SiteId; onClose: () => void }) {
+function FocusModal({ 
+  response, 
+  siteId, 
+  onClose,
+  onSendPrompt,
+  isSending 
+}: { 
+  response: string; 
+  siteId: SiteId; 
+  onClose: () => void;
+  onSendPrompt: (prompt: string, targets: SiteId[]) => Promise<void>;
+  isSending: boolean;
+}) {
   const { label, color } = SITE_META[siteId];
+  const [prompt, setPrompt] = useState("");
   
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "unset"; };
   }, []);
+
+  async function handleSend() {
+    if (!prompt.trim() || isSending) return;
+    await onSendPrompt(prompt, [siteId]);
+    setPrompt("");
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-white dark:bg-[#0b0c10]">
@@ -164,6 +183,37 @@ function FocusModal({ response, siteId, onClose }: { response: string; siteId: S
           dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
         />
       </div>
+
+      {/* Input */}
+      <div className="shrink-0 p-3 border-t border-black/10 dark:border-white/10 bg-white dark:bg-[#0b0c10]">
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
+            placeholder={`Follow up with ${label}…`}
+            rows={1}
+            disabled={isSending}
+            className="flex-1 resize-none rounded-sm px-2.5 py-2 text-xs focus:outline-none transition-colors duration-150 disabled:opacity-40 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-black dark:text-white placeholder-black/40 dark:placeholder-white/40"
+          />
+          <button
+            onClick={() => void handleSend()}
+            disabled={isSending || !prompt.trim()}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-sm transition-all duration-150 disabled:opacity-25 hover:opacity-80 bg-black dark:bg-white text-white dark:text-black"
+          >
+            {isSending ? (
+              <span className="w-3 h-3 border-[1.5px] border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <SendIcon />
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -172,7 +222,17 @@ function FocusModal({ response, siteId, onClose }: { response: string; siteId: S
 // Response View (Expand-in-place)
 // ─────────────────────────────────────────────
 
-function ResponseView({ response, siteId }: { response: string; siteId: SiteId }) {
+function ResponseView({ 
+  response, 
+  siteId, 
+  onSendPrompt,
+  isSending
+}: { 
+  response: string; 
+  siteId: SiteId;
+  onSendPrompt: (prompt: string, targets: SiteId[]) => Promise<void>;
+  isSending: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const { color } = SITE_META[siteId];
@@ -209,7 +269,13 @@ function ResponseView({ response, siteId }: { response: string; siteId: SiteId }
       </div>
 
       {focusMode && (
-        <FocusModal response={response} siteId={siteId} onClose={() => setFocusMode(false)} />
+        <FocusModal 
+          response={response} 
+          siteId={siteId} 
+          onClose={() => setFocusMode(false)}
+          onSendPrompt={onSendPrompt}
+          isSending={isSending}
+        />
       )}
     </div>
   );
@@ -385,34 +451,38 @@ export default function App() {
     } as ExtensionMessage);
   }
 
-  // ── Send follow-up ────────────────────────────────────────────────────────
-  async function handleFollowUp() {
-    if (!followUp.trim() || isSending || followUpTargets.length === 0) return;
+  // ── Send Prompt (Generic) ────────────────────────────────────────────────
+  async function sendPrompt(promptText: string, targets: SiteId[]) {
+    if (!promptText.trim() || isSending || targets.length === 0) return;
     setIsSending(true);
 
     const settings = await getSettings();
-    const targets = followUpTargets;
     const sessionId = generateId();
 
     setSessions((prev) => [
       ...prev,
-      { id: sessionId, prompt: followUp.trim(), results: targets.map((id) => ({ siteId: id, status: "pending" })), startedAt: new Date() },
+      { id: sessionId, prompt: promptText.trim(), results: targets.map((id) => ({ siteId: id, status: "pending" })), startedAt: new Date() },
     ]);
 
     try {
       await sendToBackground({
         type: "SEND_PROMPT",
-        prompt: followUp.trim(),
+        prompt: promptText.trim(),
         targets,
         autoSubmit: settings.autoSubmit,
         isFollowUp: true,
         sessionId,
       });
-      setFollowUp("");
     } catch (e) {
       console.error("[Syinx] Follow-up failed:", e);
       setIsSending(false);
     }
+  }
+
+  // ── Send follow-up from bottom bar ────────────────────────────────────────
+  async function handleFollowUp() {
+    await sendPrompt(followUp, followUpTargets);
+    setFollowUp("");
   }
 
   const toggleFollowUpTarget = (id: SiteId) => {
@@ -566,7 +636,14 @@ export default function App() {
                             )}
 
                             {/* Response view */}
-                            {r.response && <ResponseView response={r.response} siteId={r.siteId} />}
+                            {r.response && (
+                              <ResponseView 
+                                response={r.response} 
+                                siteId={r.siteId} 
+                                onSendPrompt={sendPrompt}
+                                isSending={isSending}
+                              />
+                            )}
                           </div>
                         );
                       })}

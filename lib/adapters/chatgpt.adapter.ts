@@ -144,9 +144,38 @@ export const chatgptAdapter: SiteAdapter = {
     // Step 2: Settle delay. Wait 1000ms for ChatGPT to mount the streaming stop button mount
     await new Promise((r) => setTimeout(r, 1000));
 
-    // Step 3: Wait until streaming is done (stop button disappears).
+    // Step 3: Wait until streaming is done.
+    // ChatGPT follow-ups can have network latency before the stop button appears.
+    // We wait for the content to stabilize (no changes for 1.5s) AND have some content.
+    let lastHtml = "";
+    let stableCount = 0;
+
     await pollUntil(
-      () => !document.querySelector(STREAMING_STOP_SELECTOR),
+      () => {
+        const stopBtn = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"]');
+        const isStreaming = !!container.querySelector('.result-streaming');
+        
+        if (stopBtn || isStreaming) {
+          stableCount = 0;
+          return false;
+        }
+        
+        const hasContent = container.innerText.trim().length > 0 || container.querySelectorAll('img').length > 0;
+        
+        if (hasContent) {
+          const currentHtml = container.innerHTML;
+          if (currentHtml === lastHtml) {
+            stableCount++;
+          } else {
+            lastHtml = currentHtml;
+            stableCount = 0;
+          }
+        } else {
+          stableCount = 0;
+        }
+        
+        return stableCount >= 3;
+      },
       deadline,
       500,
     );
@@ -157,17 +186,16 @@ export const chatgptAdapter: SiteAdapter = {
     const contentEls = container.querySelectorAll<HTMLElement>('.markdown.prose, .prose');
     for (let i = contentEls.length - 1; i >= 0; i--) {
       const el = contentEls[i];
-      const text = el.innerText.trim();
+      const html = el.innerHTML.trim();
       
-      const imgs = Array.from(el.querySelectorAll('img'));
-      const imageMarkdown = imgs
-        .filter(img => img.src && !img.src.includes('avatar') && !img.src.includes('favicon'))
-        .map(img => `\n\n![${img.alt || 'Image'}](${img.src})`)
-        .join('');
-
-      if (text || imageMarkdown) return text + imageMarkdown;
+      const outsideImgs = Array.from(container.querySelectorAll('img'))
+        .filter(img => !el.contains(img) && img.src && !img.src.includes('avatar') && !img.src.includes('favicon'));
+        
+      const imageHtml = outsideImgs.map(img => `<br/><img src="${img.src}" alt="${img.alt || 'Image'}" />`).join('');
+      
+      if (html || imageHtml) return imageHtml + html;
     }
 
-    return container.innerText.trim();
+    return container.innerHTML.trim();
   },
 };

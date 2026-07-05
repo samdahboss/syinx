@@ -135,9 +135,37 @@ export const claudeAdapter: SiteAdapter = {
     // Settle delay. Wait 1000ms for Claude to transition into the "generating" state
     await new Promise(r => setTimeout(r, 1000));
 
-    // Wait for streaming to finish (attribute is removed)
+    // Wait for streaming to finish.
+    // Claude follow-ups can have network latency before the streaming attribute appears.
+    // We wait for the content to stabilize (no changes for 1.5s) AND have some content.
+    let lastHtml = "";
+    let stableCount = 0;
+
     await pollUntil(
-      () => !document.querySelector('[data-is-streaming="true"]'),
+      () => {
+        const isStreaming = !!document.querySelector('[data-is-streaming="true"]');
+        
+        if (isStreaming) {
+          stableCount = 0;
+          return false;
+        }
+        
+        const hasContent = container.innerText.trim().length > 0 || container.querySelectorAll('img, svg').length > 0;
+        
+        if (hasContent) {
+          const currentHtml = container.innerHTML;
+          if (currentHtml === lastHtml) {
+            stableCount++;
+          } else {
+            lastHtml = currentHtml;
+            stableCount = 0;
+          }
+        } else {
+          stableCount = 0;
+        }
+        
+        return stableCount >= 3;
+      },
       deadline,
       500,
     );
@@ -146,10 +174,17 @@ export const claudeAdapter: SiteAdapter = {
     // We iterate backwards to find the last non-empty element
     const contentEls = container.querySelectorAll<HTMLElement>('.font-claude-message, .prose');
     for (let i = contentEls.length - 1; i >= 0; i--) {
-      const text = contentEls[i].innerText.trim();
-      if (text) return text;
+      const el = contentEls[i];
+      const html = el.innerHTML.trim();
+      
+      const outsideImgs = Array.from(container.querySelectorAll('img'))
+        .filter(img => !el.contains(img) && img.src && !img.src.includes('avatar') && !img.src.includes('favicon'));
+        
+      const imageHtml = outsideImgs.map(img => `<br/><img src="${img.src}" alt="${img.alt || 'Image'}" />`).join('');
+      
+      if (html || imageHtml) return imageHtml + html;
     }
 
-    return container.innerText.trim();
+    return container.innerHTML.trim();
   },
 };
