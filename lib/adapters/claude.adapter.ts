@@ -174,11 +174,89 @@ export const claudeAdapter: SiteAdapter = {
     // We iterate backwards to find the last non-empty element
     const contentEls = container.querySelectorAll<HTMLElement>('.font-claude-message, .prose');
     for (let i = contentEls.length - 1; i >= 0; i--) {
-      const el = contentEls[i];
+      const el = contentEls[i].cloneNode(true) as HTMLElement;
+      
+      // Transform Claude Artifact cards into clean Syinx UI cards
+      const allEls = Array.from(el.querySelectorAll('*'));
+      let replacedCards = new Set<Element>();
+      
+      for (const node of allEls) {
+        if (replacedCards.has(node) || replacedCards.has(node.parentElement!)) continue;
+        
+        let actionText = '';
+        for (const child of Array.from(node.childNodes)) {
+           if (child.nodeType === Node.TEXT_NODE) {
+               const t = child.textContent?.trim() || '';
+               if (t === 'Download' || t === 'Click to open' || t === 'Click to edit') {
+                   actionText = t;
+                   break;
+               }
+           }
+        }
+        
+        if (actionText) {
+          
+          let card = node as HTMLElement | null;
+          let levels = 0;
+          while (card && card !== el && levels < 7) {
+             const classes = card.classList.toString();
+             const tag = card.tagName.toLowerCase();
+             // Try to find the outermost card container
+              if (classes.includes('border') || classes.includes('bg-') || tag === 'fieldset' || classes.includes('flex-col')) {
+                 // Make sure it contains both title and action before breaking
+                 if (card.textContent?.includes(actionText)) {
+                     break;
+                 }
+             }
+             card = card.parentElement;
+             levels++;
+          }
+          
+          if (!card || card === el) {
+             card = node.parentElement?.parentElement || node.parentElement;
+          }
+          
+          if (card && card !== el && !replacedCards.has(card)) {
+             replacedCards.add(card);
+             
+             const texts = Array.from(card.querySelectorAll('*'))
+               .map(e => {
+                 let directText = '';
+                 for (const child of Array.from(e.childNodes)) {
+                   if (child.nodeType === Node.TEXT_NODE) {
+                     directText += child.textContent;
+                   }
+                 }
+                 return directText.trim();
+               })
+               .filter(t => t && t.length > 0 && t.length < 100 && t !== actionText);
+               
+             let title = texts[0] || "Artifact";
+             let type = "Document";
+             const typeCandidate = texts.find(t => t?.includes('•') || t?.includes('-') || t?.includes('Document') || t?.includes('Code'));
+             if (typeCandidate) type = typeCandidate;
+             else if (texts.length > 1) type = texts[1];
+             
+             const customCard = document.createElement('div');
+             customCard.className = "my-4 p-4 rounded-md border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-between";
+             customCard.innerHTML = `
+               <div class="flex flex-col gap-1">
+                 <span class="font-bold text-sm" style="color: inherit;">${title}</span>
+                 <span class="text-xs text-black/50 dark:text-white/50 uppercase tracking-widest">${type}</span>
+               </div>
+               <a href="https://claude.ai" target="_blank" class="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-sm text-xs font-bold uppercase tracking-wider hover:opacity-80 transition-opacity" style="text-decoration: none;">
+                 Open in Claude
+               </a>
+             `;
+             card.replaceWith(customCard);
+          }
+        }
+      }
+
       const html = el.innerHTML.trim();
       
       const outsideImgs = Array.from(container.querySelectorAll('img'))
-        .filter(img => !el.contains(img) && img.src && !img.src.includes('avatar') && !img.src.includes('favicon'));
+        .filter(img => !contentEls[i].contains(img) && img.src && !img.src.includes('avatar') && !img.src.includes('favicon'));
         
       const imageHtml = outsideImgs.map(img => `<br/><img src="${img.src}" alt="${img.alt || 'Image'}" />`).join('');
       
