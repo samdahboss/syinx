@@ -3,7 +3,7 @@ import { PromptInput } from "@@/components/PromptInput";
 import { SiteToggleList } from "@@/components/SiteToggleList";
 import { HistoryList } from "@@/components/HistoryList";
 import { SettingsPanel } from "@@/components/SettingsPanel";
-import type { SiteId, SendPromptResponse, ExtensionMessage } from "@@/lib/messaging";
+import type { SiteId, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import type { PromptHistoryEntry } from "@@/lib/history";
 import { getRecentHistory, removeHistoryEntry, generateId } from "@@/lib/history";

@@ -82,10 +82,11 @@ describe("storage — settings", () => {
   });
 
   it("persists and retrieves settings", async () => {
-    await setSettings({ defaultTargets: ["claude"], autoSubmit: false });
+    await setSettings({ defaultTargets: ["claude"], autoSubmit: false, useNewTabs: true });
     const settings = await getSettings();
     expect(settings.autoSubmit).toBe(false);
     expect(settings.defaultTargets).toEqual(["claude"]);
+    expect(settings.useNewTabs).toBe(true);
   });
 
   it("updateSettings merges partials correctly", async () => {
@@ -100,19 +101,19 @@ describe("storage — settings", () => {
 
 describe("history — addHistoryEntry", () => {
   it("adds an entry to the top of history", async () => {
-    const entry = await addHistoryEntry("hello world", ["chatgpt", "claude"]);
+    await addHistoryEntry("hello world", ["chatgpt", "claude"], "test-id-1");
+    const history = await getHistory();
+    const entry = history[0];
+    
     expect(entry.prompt).toBe("hello world");
     expect(entry.targets).toEqual(["chatgpt", "claude"]);
-    expect(entry.id).toBeTruthy();
+    expect(entry.id).toBe("test-id-1");
     expect(entry.timestamp).toBeGreaterThan(0);
-
-    const history = await getHistory();
-    expect(history[0].id).toBe(entry.id);
   });
 
   it("prepends (newest first)", async () => {
-    await addHistoryEntry("first", ["chatgpt"]);
-    await addHistoryEntry("second", ["claude"]);
+    await addHistoryEntry("first", ["chatgpt"], "id-1");
+    await addHistoryEntry("second", ["claude"], "id-2");
     const history = await getHistory();
     expect(history[0].prompt).toBe("second");
     expect(history[1].prompt).toBe("first");
@@ -120,7 +121,7 @@ describe("history — addHistoryEntry", () => {
 
   it(`caps history at ${HISTORY_CAP} entries`, async () => {
     for (let i = 0; i < HISTORY_CAP + 5; i++) {
-      await addHistoryEntry(`prompt ${i}`, ["chatgpt"]);
+      await addHistoryEntry(`prompt ${i}`, ["chatgpt"], `id-${i}`);
     }
     const history = await getHistory();
     expect(history).toHaveLength(HISTORY_CAP);
@@ -131,14 +132,14 @@ describe("history — addHistoryEntry", () => {
 
 describe("history — removeHistoryEntry", () => {
   it("removes an entry by id", async () => {
-    const entry = await addHistoryEntry("to remove", ["gemini"]);
-    await removeHistoryEntry(entry.id);
+    await addHistoryEntry("to remove", ["gemini"], "remove-id");
+    await removeHistoryEntry("remove-id");
     const history = await getHistory();
-    expect(history.find((e) => e.id === entry.id)).toBeUndefined();
+    expect(history.find((e) => e.id === "remove-id")).toBeUndefined();
   });
 
   it("is a no-op for unknown ids", async () => {
-    await addHistoryEntry("keep me", ["chatgpt"]);
+    await addHistoryEntry("keep me", ["chatgpt"], "keep-id");
     await removeHistoryEntry("nonexistent-id");
     const history = await getHistory();
     expect(history).toHaveLength(1);
@@ -147,8 +148,8 @@ describe("history — removeHistoryEntry", () => {
 
 describe("history — clearHistory", () => {
   it("clears all entries", async () => {
-    await addHistoryEntry("a", ["chatgpt"]);
-    await addHistoryEntry("b", ["claude"]);
+    await addHistoryEntry("a", ["chatgpt"], "id-a");
+    await addHistoryEntry("b", ["claude"], "id-b");
     await clearHistory();
     const history = await getHistory();
     expect(history).toHaveLength(0);
@@ -158,7 +159,7 @@ describe("history — clearHistory", () => {
 describe("history — getRecentHistory", () => {
   it("returns at most `limit` entries", async () => {
     for (let i = 0; i < 30; i++) {
-      await addHistoryEntry(`p${i}`, ["chatgpt"]);
+      await addHistoryEntry(`p${i}`, ["chatgpt"], `id-${i}`);
     }
     const recent = await getRecentHistory(10);
     expect(recent).toHaveLength(10);

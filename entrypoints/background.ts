@@ -64,7 +64,7 @@ export default defineBackground(() => {
 
   // ── Handle Messages ──────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener(
-    (message: unknown, sender, sendResponse) => {
+    (message: unknown, _sender, sendResponse) => {
       const msg = message as ExtensionMessage;
 
       if (msg.type === "RESPONSE_CAPTURED") {

@@ -42,7 +42,6 @@ const SEL_SEND_BUTTON = 'button[data-testid="send-button"]';
 const SEL_SEND_BUTTON_FALLBACK = 'button[aria-label="Send prompt"]';
 
 const RESPONSE_CONTAINER_SELECTOR = '[data-message-author-role="assistant"]';
-const STREAMING_STOP_SELECTOR = 'button[data-testid="stop-button"]';
 
 // ─────────────────────────────────────────────
 // Adapter implementation
