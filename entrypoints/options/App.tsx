@@ -6,19 +6,21 @@ import { SettingsPanel } from "@@/components/SettingsPanel";
 import { TemplatesList } from "@@/components/TemplatesList";
 import { TemplateSelector } from "@@/components/TemplateSelector";
 import { TemplateFillInline } from "@@/components/TemplateFillInline";
+import { PipelinesList } from "@@/components/PipelinesList";
+import { PipelineSelector } from "@@/components/PipelineSelector";
 import type { SiteId, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import type { PromptHistoryEntry } from "@@/lib/history";
 import { getRecentHistory, removeHistoryEntry, generateId } from "@@/lib/history";
-import type { Settings, PromptTemplate } from "@@/lib/storage";
-import { getSettings, updateSettings, getTemplates } from "@@/lib/storage";
+import type { Settings, PromptTemplate, Pipeline } from "@@/lib/storage";
+import { getSettings, updateSettings, getTemplates, getPipelines } from "@@/lib/storage";
 import { classifyPrompt } from "@@/lib/classifier";
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 
-type Tab = "chat" | "history" | "settings" | "templates";
+type Tab = "chat" | "history" | "settings" | "templates" | "pipelines";
 type Theme = "dark" | "light";
 
 // ─────────────────────────────────────────────
@@ -61,6 +63,8 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [userManuallySelectedTargets, setUserManuallySelectedTargets] = useState(false);
   const [autoSelected, setAutoSelected] = useState(false);
   const windowIdRef = useRef<number | undefined>(undefined);
@@ -68,16 +72,18 @@ export default function App() {
   // ── Load persisted state on mount ────────────────────────────────────────
   useEffect(() => {
     void (async () => {
-      const [savedSettings, savedHistory, currentWindow, savedTemplates] = await Promise.all([
+      const [savedSettings, savedHistory, currentWindow, savedTemplates, savedPipelines] = await Promise.all([
         getSettings(),
         getRecentHistory(20),
         chrome.windows.getCurrent(),
         getTemplates(),
+        getPipelines(),
       ]);
       setSettings(savedSettings);
       setTargets(savedSettings.defaultTargets);
       setHistory(savedHistory);
       setTemplates(savedTemplates);
+      setPipelines(savedPipelines);
       windowIdRef.current = currentWindow.id;
     })();
 
@@ -116,10 +122,11 @@ export default function App() {
     }
   }, [prompt, settings.smartSelect, userManuallySelectedTargets, settings.defaultTargets, autoSelected]);
 
-  // ── Refresh templates when switching to chat tab ─────────────────────────
+  // ── Refresh templates/pipelines when switching to chat tab ────────────────
   useEffect(() => {
     if (activeTab === "chat") {
       void getTemplates().then(setTemplates);
+      void getPipelines().then(setPipelines);
     }
   }, [activeTab]);
 
@@ -137,8 +144,13 @@ export default function App() {
     openPanel = false,
   ) => {
     const currentPrompt = prompt.trim();
+    if (!currentPrompt || isLoading) return;
+    
+    // Check if we're running a pipeline or standard targets
+    const isPipeline = selectedPipeline !== null;
     const currentTargets = overrideTargets ?? targets;
-    if (!currentPrompt || isLoading || currentTargets.length === 0) return;
+    if (!isPipeline && currentTargets.length === 0) return;
+
     setIsLoading(true);
 
     if (openPanel) {
@@ -153,14 +165,24 @@ export default function App() {
 
     try {
       const sessionId = generateId();
-      await sendToBackground({
-        type: "SEND_PROMPT",
-        prompt: currentPrompt,
-        targets: currentTargets,
-        autoSubmit: settings.autoSubmit,
-        isFollowUp: false,
-        sessionId,
-      });
+      
+      if (isPipeline) {
+        await sendToBackground({
+          type: "EXECUTE_PIPELINE",
+          pipeline: selectedPipeline,
+          initialInput: currentPrompt,
+        } as unknown as Extract<ExtensionMessage, { type: "SEND_PROMPT" }>); // Type hack because sendToBackground strictly types to SEND_PROMPT currently, but chrome.runtime.sendMessage handles both
+      } else {
+        await sendToBackground({
+          type: "SEND_PROMPT",
+          prompt: currentPrompt,
+          targets: currentTargets,
+          autoSubmit: settings.autoSubmit,
+          isFollowUp: false,
+          sessionId,
+        });
+      }
+      
       setUserManuallySelectedTargets(false);
       setAutoSelected(false);
       setPrompt("");
@@ -314,6 +336,18 @@ export default function App() {
                   onCancel={() => setSelectedTemplate(null)}
                 />
               )}
+              <PipelineSelector 
+                pipelines={pipelines} 
+                onSelect={(p) => {
+                  setSelectedPipeline(p);
+                  // Optional: hide auto select when pipeline active
+                  if (p) {
+                    setAutoSelected(false);
+                    setUserManuallySelectedTargets(true);
+                  }
+                }} 
+                selectedPipelineId={selectedPipeline?.id}
+              />
             </div>
             <PromptInput
               value={prompt}
@@ -322,31 +356,41 @@ export default function App() {
               isLoading={isLoading}
               theme={theme}
             />
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
-                  Send to
-                </p>
-                {autoSelected && (
-                  <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 animate-in fade-in zoom-in duration-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                    Auto-selected. Click below to override.
-                  </span>
-                )}
+            {!selectedPipeline && (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
+                    Send to
+                  </p>
+                  {autoSelected && (
+                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 animate-in fade-in zoom-in duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      Auto-selected. Click below to override.
+                    </span>
+                  )}
+                </div>
+                <SiteToggleList 
+                  selected={targets} 
+                  onChange={(newTargets) => {
+                    setTargets(newTargets);
+                    setUserManuallySelectedTargets(true);
+                    setAutoSelected(false);
+                  }} 
+                  disabled={isLoading} 
+                  theme={theme} 
+                />
               </div>
-              <SiteToggleList 
-                selected={targets} 
-                onChange={(newTargets) => {
-                  setTargets(newTargets);
-                  setUserManuallySelectedTargets(true);
-                  setAutoSelected(false);
-                }} 
-                disabled={isLoading} 
-                theme={theme} 
-              />
-            </div>
+            )}
+            {selectedPipeline && (
+              <div className="flex items-center gap-2 mt-[-1rem]">
+                 <span className="text-xs font-bold text-blue-500 bg-blue-500/10 px-3 py-1 rounded-sm flex items-center gap-2 border border-blue-500/20">
+                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M10 3a1.5 1.5 0 113 0v4.062a1.5 1.5 0 01-3 0V3zM15.429 8.572a1.5 1.5 0 10-2.122-2.122l-2.872 2.872a1.5 1.5 0 002.122 2.122l2.872-2.872zM8.571 8.572a1.5 1.5 0 112.122-2.122l2.872 2.872a1.5 1.5 0 01-2.122 2.122L8.571 8.572zM3 10a1.5 1.5 0 100 3h4.062a1.5 1.5 0 000-3H3zM21 10a1.5 1.5 0 100 3h-4.062a1.5 1.5 0 000-3H21zM8.571 15.428a1.5 1.5 0 102.122 2.122l2.872-2.872a1.5 1.5 0 00-2.122-2.122l-2.872 2.872zM15.429 15.428a1.5 1.5 0 11-2.122 2.122l-2.872-2.872a1.5 1.5 0 012.122-2.122l2.872 2.872zM10 21a1.5 1.5 0 103 0v-4.062a1.5 1.5 0 00-3 0V21z" /></svg>
+                   Pipeline active: "{selectedPipeline.name}"
+                 </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -361,6 +405,10 @@ export default function App() {
 
         {activeTab === "templates" && (
           <TemplatesList theme={theme} />
+        )}
+
+        {activeTab === "pipelines" && (
+          <PipelinesList theme={theme} />
         )}
 
         {activeTab === "settings" && (

@@ -5,7 +5,7 @@
  */
 
 import type { ExtensionMessage, SendPromptResponse, SiteId, SiteResult } from "@@/lib/messaging";
-import { addHistoryEntry } from "@@/lib/history";
+import { addHistoryEntry, generateId } from "@@/lib/history";
 import { getSettings, addResponseToEntry } from "@@/lib/storage";
 
 // ─────────────────────────────────────────────
@@ -142,6 +142,79 @@ export default defineBackground(() => {
 
           notifyProgress([result]);
           sendResponse({ results: [result] });
+        })();
+        return true;
+      }
+
+      if (msg.type === "EXECUTE_PIPELINE") {
+        void (async () => {
+          const settings = await getSettings();
+          let currentInput = msg.initialInput;
+          
+          for (const step of msg.pipeline.steps) {
+            const compiledPrompt = step.promptTemplate.replace(/\{\{input\}\}/g, currentInput);
+            const sessionId = generateId(); // Unique ID for this step's history entry
+            
+            // 1. Add to history
+            try {
+              await addHistoryEntry(compiledPrompt, [step.target], sessionId);
+            } catch (e) {
+              console.warn("[Syinx] Failed to save history entry:", e);
+            }
+
+            const results: SiteResult[] = [{ siteId: step.target, status: "pending" }];
+            const notifyProgress = () => {
+              void chrome.runtime.sendMessage({ type: "PROGRESS_UPDATE", results, sessionId } as ExtensionMessage);
+            };
+            notifyProgress();
+
+            // Set up a one-time promise to wait for RESPONSE_CAPTURED
+            const responsePromise = new Promise<string>((resolve, reject) => {
+              const listener = (incomingMsg: unknown) => {
+                const data = incomingMsg as ExtensionMessage;
+                if (data.type === "RESPONSE_CAPTURED" && data.sessionId === sessionId && data.siteId === step.target) {
+                  chrome.runtime.onMessage.removeListener(listener);
+                  if (data.error) reject(new Error(data.error));
+                  else resolve(data.response);
+                }
+              };
+              chrome.runtime.onMessage.addListener(listener);
+            });
+
+            try {
+              const tab = await findOrOpenTab(step.target, settings.useNewTabs, false);
+              if (tab.id) {
+                await chrome.tabs.update(tab.id, { active: true });
+                const ready = await waitForContentScript(tab.id);
+                if (!ready) {
+                  throw new Error("Content script not found. Please refresh.");
+                } else {
+                  const injectResult = await sendMessageWithRetry(tab.id, {
+                    type: "INJECT_PROMPT",
+                    prompt: compiledPrompt,
+                    autoSubmit: true,
+                    sessionId,
+                  });
+                  if (injectResult && typeof injectResult === "object" && "type" in injectResult && injectResult.type === "INJECT_RESULT") {
+                    const r = injectResult as Extract<ExtensionMessage, { type: "INJECT_RESULT" }>;
+                    if (!r.success) throw new Error(r.error || "Injection failed");
+                  } else {
+                    throw new Error("Unexpected response from content script");
+                  }
+                }
+              } else {
+                throw new Error("Failed to create or find tab");
+              }
+
+              // Wait for generation to finish and capture the response
+              currentInput = await responsePromise;
+
+            } catch (e) {
+              console.error(`[Syinx] Pipeline step failed:`, e);
+              // Abort pipeline on error
+              break; 
+            }
+          }
         })();
         return true;
       }

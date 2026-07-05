@@ -47,6 +47,19 @@ export interface PromptTemplate {
   createdAt: number;
 }
 
+export interface PipelineStep {
+  id: string;
+  target: SiteId;
+  promptTemplate: string;
+}
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  steps: PipelineStep[];
+  createdAt: number;
+}
+
 // ─────────────────────────────────────────────
 // Defaults
 // ─────────────────────────────────────────────
@@ -80,10 +93,11 @@ export const DEFAULT_TEMPLATES: PromptTemplate[] = [
 // Storage keys (single source of truth)
 // ─────────────────────────────────────────────
 
-const KEYS = {
-  history: "history",
-  settings: "settings",
-  templates: "templates",
+export const KEYS = {
+  history: "ps-history",
+  settings: "ps-settings",
+  templates: "ps-templates",
+  pipelines: "ps-pipelines",
 } as const;
 
 // ─────────────────────────────────────────────
@@ -180,4 +194,38 @@ export async function deleteTemplate(id: string): Promise<void> {
   const templates = await getTemplates();
   const updated = templates.filter((t) => t.id !== id);
   await setTemplates(updated);
+}
+
+// ─────────────────────────────────────────────
+// Pipelines
+// ─────────────────────────────────────────────
+
+export async function getPipelines(): Promise<Pipeline[]> {
+  const result = await chrome.storage.local.get(KEYS.pipelines);
+  return (result[KEYS.pipelines] as Pipeline[] | undefined) ?? [];
+}
+
+export async function setPipelines(pipelines: Pipeline[]): Promise<void> {
+  await chrome.storage.local.set({ [KEYS.pipelines]: pipelines });
+}
+
+export async function addPipeline(pipeline: Pipeline): Promise<void> {
+  const pipelines = await getPipelines();
+  const updated = [pipeline, ...pipelines];
+  await setPipelines(updated);
+}
+
+export async function updatePipeline(pipeline: Pipeline): Promise<void> {
+  const pipelines = await getPipelines();
+  const idx = pipelines.findIndex((p) => p.id === pipeline.id);
+  if (idx !== -1) {
+    pipelines[idx] = pipeline;
+    await setPipelines(pipelines);
+  }
+}
+
+export async function deletePipeline(id: string): Promise<void> {
+  const pipelines = await getPipelines();
+  const updated = pipelines.filter((p) => p.id !== id);
+  await setPipelines(updated);
 }

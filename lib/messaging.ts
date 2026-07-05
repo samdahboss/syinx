@@ -9,6 +9,8 @@
 /** The three site IDs supported by Syinx v1. */
 export type SiteId = "chatgpt" | "claude" | "gemini";
 
+import type { Pipeline } from "@@/lib/storage";
+
 export type SiteStatus = "idle" | "pending" | "generating" | "success" | "error";
 
 export interface SiteResult {
@@ -78,6 +80,11 @@ export type ExtensionMessage =
     response: string;
     sessionId: string;
     error?: string;
+  }
+  | {
+    type: "EXECUTE_PIPELINE";
+    pipeline: Pipeline;
+    initialInput: string;
   };
 
 /**
