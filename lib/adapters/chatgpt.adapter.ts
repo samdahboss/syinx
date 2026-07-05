@@ -151,10 +151,25 @@ export const chatgptAdapter: SiteAdapter = {
 
     await pollUntil(
       () => {
-        const stopBtn = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"]');
-        const isStreaming = !!container.querySelector('.result-streaming');
+        // Look for the stop button, but be aware ChatGPT changes these selectors
+        // Currently, it uses data-testid="stop-button". Also check for the old aria-label.
+        const stopBtn = document.querySelector('button[aria-label="Stop generating"], button[data-testid="stop-button"]');
         
-        if (stopBtn || isStreaming) {
+        // Also check if there is a 'result-streaming' class present in the container
+        const isStreaming = !!container.querySelector('.result-streaming');
+
+        // Check if there's a "Regenerate" or "Copy" button in the response container itself
+        // When these appear, it's a very strong signal that generation is complete.
+        // We look specifically in this container to avoid matching buttons from previous responses.
+        const hasActionButtons = !!container.querySelector('button[aria-label="Copy"], button[data-testid="copy-button"], button[data-testid="regenerate-button"]');
+        
+        // If there are action buttons, generation is definitively complete, regardless of what stopBtn says.
+        // This is a safety hatch in case the stop button selector breaks but the action buttons selector works.
+        if (hasActionButtons) {
+            // We still want to ensure content is stable, but we don't return false early.
+        } else if (stopBtn || isStreaming) {
+          // If there is an explicit stop button or a streaming cursor class AND no action buttons, 
+          // we are definitely still streaming.
           stableCount = 0;
           return false;
         }

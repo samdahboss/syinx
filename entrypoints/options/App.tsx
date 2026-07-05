@@ -3,18 +3,21 @@ import { PromptInput } from "@@/components/PromptInput";
 import { SiteToggleList } from "@@/components/SiteToggleList";
 import { HistoryList } from "@@/components/HistoryList";
 import { SettingsPanel } from "@@/components/SettingsPanel";
+import { TemplatesList } from "@@/components/TemplatesList";
+import { TemplateSelector } from "@@/components/TemplateSelector";
+import { TemplateFillInline } from "@@/components/TemplateFillInline";
 import type { SiteId, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
 import type { PromptHistoryEntry } from "@@/lib/history";
 import { getRecentHistory, removeHistoryEntry, generateId } from "@@/lib/history";
-import type { Settings } from "@@/lib/storage";
-import { getSettings, updateSettings } from "@@/lib/storage";
+import type { Settings, PromptTemplate } from "@@/lib/storage";
+import { getSettings, updateSettings, getTemplates } from "@@/lib/storage";
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 
-type Tab = "chat" | "history" | "settings";
+type Tab = "chat" | "history" | "settings" | "templates";
 type Theme = "dark" | "light";
 
 // ─────────────────────────────────────────────
@@ -54,19 +57,23 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [theme, setTheme] = useState<Theme>("dark");
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
   const windowIdRef = useRef<number | undefined>(undefined);
 
   // ── Load persisted state on mount ────────────────────────────────────────
   useEffect(() => {
     void (async () => {
-      const [savedSettings, savedHistory, currentWindow] = await Promise.all([
+      const [savedSettings, savedHistory, currentWindow, savedTemplates] = await Promise.all([
         getSettings(),
         getRecentHistory(20),
         chrome.windows.getCurrent(),
+        getTemplates(),
       ]);
       setSettings(savedSettings);
       setTargets(savedSettings.defaultTargets);
       setHistory(savedHistory);
+      setTemplates(savedTemplates);
       windowIdRef.current = currentWindow.id;
     })();
 
@@ -85,6 +92,13 @@ export default function App() {
     }
     localStorage.setItem("ps-theme", theme);
   }, [theme]);
+
+  // ── Refresh templates when switching to chat tab ─────────────────────────
+  useEffect(() => {
+    if (activeTab === "chat") {
+      void getTemplates().then(setTemplates);
+    }
+  }, [activeTab]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
@@ -177,6 +191,16 @@ export default function App() {
     setSettings(updated);
   }
 
+  function handleTemplateSelect(template: PromptTemplate) {
+    const hasVars = /\{\{([^}]+)\}\}/.test(template.content);
+    if (hasVars) {
+      setSelectedTemplate(template);
+    } else {
+      setPrompt(template.content);
+      setSelectedTemplate(null);
+    }
+  }
+
   // ─────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────
@@ -195,7 +219,7 @@ export default function App() {
           {/* Right side: tabs + theme toggle */}
           <div className="flex items-center gap-6">
             <nav className="flex items-center gap-1">
-              {(["chat", "history", "settings"] as Tab[]).map((tab) => (
+              {(["chat", "history", "templates", "settings"] as Tab[]).map((tab) => (
                 <button
                   key={tab}
                   id={`tab-${tab}`}
@@ -234,6 +258,7 @@ export default function App() {
         <h1 className="text-5xl font-black uppercase leading-none tracking-tight text-black dark:text-white">
           {activeTab === "chat" && "SEND YOUR\nPROMPT"}
           {activeTab === "history" && "RECENT\nACTIVITY"}
+          {activeTab === "templates" && "PROMPT\nTEMPLATES"}
           {activeTab === "settings" && "CONFIGURE\nSYNC"}
         </h1>
       </div>
@@ -247,6 +272,23 @@ export default function App() {
       <main className="max-w-3xl mx-auto px-8 py-10">
         {activeTab === "chat" && (
           <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-2">
+              <TemplateSelector 
+                templates={templates} 
+                onSelect={handleTemplateSelect} 
+                selectedTemplateId={selectedTemplate?.id}
+              />
+              {selectedTemplate && (
+                <TemplateFillInline 
+                  template={selectedTemplate} 
+                  onApply={(compiled) => {
+                    setPrompt(compiled);
+                    setSelectedTemplate(null);
+                  }}
+                  onCancel={() => setSelectedTemplate(null)}
+                />
+              )}
+            </div>
             <PromptInput
               value={prompt}
               onChange={setPrompt}
@@ -270,6 +312,10 @@ export default function App() {
             onDelete={(id) => { void handleDelete(id); }}
             theme={theme}
           />
+        )}
+
+        {activeTab === "templates" && (
+          <TemplatesList theme={theme} />
         )}
 
         {activeTab === "settings" && (
