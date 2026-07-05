@@ -70,7 +70,7 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
             const pct = Math.round((wins[site] / totalRated) * 100) || 0;
             return (
               <div key={site} className="flex flex-col gap-1.5 w-24">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-black/60 dark:text-white/60">
+                <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-black/60 dark:text-white/60">
                   <span>{SITE_LABELS[site]}</span>
                   <span>{pct}%</span>
                 </div>
@@ -98,7 +98,7 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search prompt history..."
-          className="w-full bg-transparent border border-black/15 dark:border-white/15 pl-10 pr-4 py-2.5 text-sm focus:border-black dark:focus:border-white outline-none transition-colors text-black dark:text-white placeholder-black/30 dark:placeholder-white/30"
+          className="w-full bg-transparent border border-black/15 dark:border-white/15 pl-10 pr-4 py-2.5 text-sm focus:border-black dark:focus:border-white outline-none transition-colors text-black dark:text-white placeholder-black/30 dark:placeholder-white/30 focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
         />
       </div>
 
@@ -124,7 +124,7 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
               {entry.prompt}
             </p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-mono text-black/30 dark:text-white/30">
+              <span className="text-xs font-mono text-black/30 dark:text-white/30">
                 {formatTime(entry.timestamp)}
               </span>
               <span className="text-black/15 dark:text-white/15">·</span>
@@ -132,7 +132,7 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
                 {entry.targets.map((t) => (
                   <span
                     key={t}
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-1.5 py-0.5 ${
+                    className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wider border px-1.5 py-0.5 ${
                       entry.winner === t 
                         ? "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10" 
                         : "text-black/40 dark:text-white/40 border-black/10 dark:border-white/10"
@@ -155,16 +155,18 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
             <button
               id={`resend-${entry.id}`}
               onClick={() => { onResend(entry); }}
+              aria-label="Resend prompt"
               title="Re-send this prompt"
-              className="p-2 border border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-black/40 dark:text-white/40 transition-all duration-150 rounded-sm"
+              className="p-2 border border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-black/40 dark:text-white/40 transition-all duration-150 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
             >
               <ResendIcon />
             </button>
             <button
               id={`delete-${entry.id}`}
               onClick={() => { onDelete(entry.id); }}
+              aria-label="Delete from history"
               title="Delete from history"
-              className="p-2 border border-black/10 dark:border-white/10 hover:border-black/50 dark:hover:border-white/50 text-black/25 dark:text-white/25 hover:text-black/60 dark:hover:text-white/60 transition-all duration-150 rounded-sm"
+              className="p-2 border border-black/10 dark:border-white/10 hover:border-black/50 dark:hover:border-white/50 text-black/25 dark:text-white/25 hover:text-black/60 dark:hover:text-white/60 transition-all duration-150 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
             >
               <DeleteIcon />
             </button>

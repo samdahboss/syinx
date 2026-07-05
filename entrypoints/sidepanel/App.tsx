@@ -97,7 +97,7 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
 function StatusBadge({ status }: { status: SiteResult["status"] }) {
   if (status === "pending") {
     return (
-      <span className="flex items-center gap-1.5 text-yellow-500 dark:text-yellow-400 text-[10px] px-2 py-0.5 bg-yellow-500/10 rounded-full font-semibold uppercase tracking-wider">
+      <span className="flex items-center gap-1.5 text-yellow-500 dark:text-yellow-400 text-xs px-2 py-0.5 bg-yellow-500/10 rounded-full font-semibold uppercase tracking-wider">
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-500" />
@@ -108,7 +108,7 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
   }
   if (status === "generating") {
     return (
-      <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 text-[10px] px-2 py-0.5 bg-purple-500/10 rounded-full font-semibold uppercase tracking-wider border border-purple-500/20">
+      <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 text-xs px-2 py-0.5 bg-purple-500/10 rounded-full font-semibold uppercase tracking-wider border border-purple-500/20">
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500" />
@@ -119,14 +119,14 @@ function StatusBadge({ status }: { status: SiteResult["status"] }) {
   }
   if (status === "success") {
     return (
-      <span className="text-emerald-600 dark:text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20">
+      <span className="text-emerald-600 dark:text-emerald-400 text-xs px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20">
         ✓ Done
       </span>
     );
   }
   if (status === "error") {
     return (
-      <span className="text-red-600 dark:text-red-400 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-red-500/10 border border-red-500/20">
+      <span className="text-red-600 dark:text-red-400 text-xs px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-red-500/10 border border-red-500/20">
         ✕ Failed
       </span>
     );
@@ -163,9 +163,9 @@ function FocusModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-white dark:bg-[#0b0c10]">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-white/80 dark:bg-[#0b0c10]/80 backdrop-blur-md">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-black/10 dark:border-white/10 shrink-0 bg-white dark:bg-[#0b0c10]">
+      <div className="flex items-center justify-between p-3 border-b border-black/10 dark:border-white/10 shrink-0 bg-transparent">
         <div className="flex items-center gap-2 font-bold text-sm" style={{ color }}>
           {label} Response
         </div>
@@ -178,7 +178,7 @@ function FocusModal({
       </div>
       
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white dark:bg-[#0b0c10]">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-transparent">
         <div
           className="prose prose-invert prose-sm max-w-none prose-p:my-3 prose-pre:my-4 prose-pre:bg-black/5 dark:prose-pre:bg-white/5 prose-pre:text-black dark:prose-pre:text-white prose-code:px-1.5 prose-code:py-0.5 prose-code:bg-black/5 dark:prose-code:bg-white/5 prose-code:rounded prose-img:rounded-md prose-img:shadow-sm"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
@@ -186,7 +186,7 @@ function FocusModal({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 p-3 border-t border-black/10 dark:border-white/10 bg-white dark:bg-[#0b0c10]">
+      <div className="shrink-0 p-3 border-t border-black/10 dark:border-white/10 bg-transparent">
         <div className="flex gap-2 items-end">
           <textarea
             value={prompt}
@@ -241,9 +241,9 @@ function ResponseView({
   if (!response) return null;
 
   return (
-    <div className="mt-2 text-[11px] bg-white dark:bg-[#0f1117] border border-black/10 dark:border-white/10 rounded-sm overflow-hidden relative">
+    <div className="mt-2 text-sm bg-white dark:bg-[#0f1117] border border-black/10 dark:border-white/10 rounded-sm overflow-hidden relative">
       <div
-        className={`prose prose-invert prose-sm max-w-none text-[10px] sm:text-[11px] leading-relaxed opacity-90 prose-p:my-1.5 prose-pre:my-2 prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:text-black dark:prose-pre:text-white prose-code:text-[9px] prose-code:px-1 prose-code:py-0.5 prose-code:bg-black/5 dark:prose-code:bg-white/5 prose-code:rounded whitespace-pre-wrap font-mono transition-all duration-300 p-2.5 ${
+        className={`prose prose-invert prose-sm max-w-none text-xs sm:text-sm leading-relaxed opacity-90 prose-p:my-1.5 prose-pre:my-2 prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:text-black dark:prose-pre:text-white prose-code:text-xs prose-code:px-1 prose-code:py-0.5 prose-code:bg-black/5 dark:prose-code:bg-white/5 prose-code:rounded whitespace-pre-wrap font-mono transition-all duration-300 p-2.5 ${
           !expanded ? "max-h-32 overflow-hidden" : ""
         }`}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }}
@@ -254,7 +254,7 @@ function ResponseView({
       <div className="flex bg-black/3 dark:bg-white/3 border-t border-black/5 dark:border-white/5">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex-1 text-center py-1.5 text-[9px] font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="flex-1 text-center py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           style={{ color }}
         >
           {expanded ? "Collapse" : "Read Full Response"}
@@ -299,7 +299,7 @@ function SiteToggle({
   return (
     <button
       onClick={onToggle}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border transition-all duration-150 ${
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all duration-150 ${
         selected
           ? "border-black/20 dark:border-white/20 bg-black/5 dark:bg-white/5 text-black dark:text-white"
           : "border-black/10 dark:border-white/10 text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60"
@@ -517,18 +517,20 @@ export default function App() {
           {/* Open Options */}
           <button
             id="open-options-btn"
+            aria-label="Open settings"
             onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("options.html") })}
             title="Open settings"
-            className="w-7 h-7 flex items-center justify-center rounded-sm border border-black/15 dark:border-white/15 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150"
+            className="w-8 h-8 flex items-center justify-center rounded-sm border border-black/15 dark:border-white/15 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
           >
             <ExternalLinkIcon />
           </button>
           {/* Theme Toggle */}
           <button
             id="theme-toggle-btn"
+            aria-label="Toggle theme"
             onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             title="Toggle theme"
-            className="w-7 h-7 flex items-center justify-center rounded-sm border border-black/15 dark:border-white/15 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150"
+            className="w-8 h-8 flex items-center justify-center rounded-sm border border-black/15 dark:border-white/15 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
           >
             {theme === "dark" ? <SunIcon /> : <MoonIcon />}
           </button>
@@ -542,7 +544,7 @@ export default function App() {
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-12">
             <img src="/icon-128.png" alt="Syinx" className="w-12 h-12 rounded-xl opacity-40" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
                 No active session
               </p>
               <p className="text-xs text-black/40 dark:text-white/40 max-w-[180px] leading-relaxed">
@@ -552,7 +554,7 @@ export default function App() {
             <button
               id="open-options-idle-btn"
               onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("options.html") })}
-              className="mt-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border border-black/20 dark:border-white/20 rounded-sm hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-150"
+              className="mt-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-black/20 dark:border-white/20 rounded-sm hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-150"
             >
               Open Syinx
             </button>
@@ -564,7 +566,21 @@ export default function App() {
               <div key={si} className="flex flex-col gap-2">
                 {/* Session header */}
                 <div 
-                  className="flex items-center justify-between cursor-pointer group py-1"
+                  className="flex items-center justify-between cursor-pointer group py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20 rounded-sm"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={!isCollapsed}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setCollapsedSessions((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(session.id)) next.delete(session.id);
+                        else next.add(session.id);
+                        return next;
+                      });
+                    }
+                  }}
                   onClick={() => {
                     setCollapsedSessions((prev) => {
                       const next = new Set(prev);
@@ -576,11 +592,11 @@ export default function App() {
                 >
                   <div className="flex items-center gap-1.5">
                     <ChevronIcon expanded={!isCollapsed} />
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors">
+                    <p className="text-xs font-bold uppercase tracking-widest text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors">
                       {si === 0 ? "Session" : `Follow-up ${si}`}
                     </p>
                   </div>
-                  <p className="text-[9px] text-black/20 dark:text-white/20 group-hover:text-black/40 dark:group-hover:text-white/40 transition-colors">
+                  <p className="text-xs text-black/20 dark:text-white/20 group-hover:text-black/40 dark:group-hover:text-white/40 transition-colors">
                     {session.startedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
@@ -589,7 +605,7 @@ export default function App() {
                   <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Prompt preview */}
                     {session.prompt && (
-                      <p className="text-[11px] text-black/50 dark:text-white/40 italic truncate px-2.5 py-1.5 bg-black/3 dark:bg-white/3 rounded-sm border border-black/5 dark:border-white/5">
+                      <p className="text-sm text-black/50 dark:text-white/40 italic truncate px-2.5 py-1.5 bg-black/3 dark:bg-white/3 rounded-sm border border-black/5 dark:border-white/5">
                         "{session.prompt}"
                       </p>
                     )}
@@ -618,7 +634,7 @@ export default function App() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span
-                                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
                                   style={{ backgroundColor: meta.color }}
                                 >
                                   {meta.initial}
@@ -648,14 +664,14 @@ export default function App() {
                             {/* Error + Retry */}
                             {r.status === "error" && (
                               <div className="flex items-start justify-between gap-2 pl-7">
-                                <p className="text-[10px] text-red-500 dark:text-red-400 leading-relaxed flex-1">
+                                <p className="text-xs text-red-500 dark:text-red-400 leading-relaxed flex-1">
                                   {r.error ?? "Unknown error"}
                                 </p>
                                 {isLast && (
                                   <button
                                     id={`retry-${r.siteId}-btn`}
                                     onClick={() => void handleRetry(r.siteId)}
-                                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border border-black/15 dark:border-white/15 rounded-full text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 shrink-0"
+                                    className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold uppercase tracking-wider border border-black/15 dark:border-white/15 rounded-full text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:border-black/40 dark:hover:border-white/40 transition-all duration-150 shrink-0"
                                   >
                                     <RetryIcon />
                                     Retry
@@ -680,7 +696,7 @@ export default function App() {
 
                     {/* Summary line */}
                     {session.results.every((r) => r.status === "success" || r.status === "error") && (
-                      <p className="text-[9px] text-black/25 dark:text-white/25 uppercase tracking-widest text-right mt-1">
+                      <p className="text-xs text-black/25 dark:text-white/25 uppercase tracking-widest text-right mt-1">
                         {session.results.filter((r) => r.status === "success").length}/{session.results.length} succeeded
                       </p>
                     )}
@@ -697,8 +713,8 @@ export default function App() {
       <div className="h-px bg-black/8 dark:bg-white/8 shrink-0" />
 
       {/* ── Follow-Up Input ───────────────────────────────────────────────── */}
-      <footer className="shrink-0 px-4 pt-3 pb-4 flex flex-col gap-2.5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
+      <footer className="shrink-0 px-4 pt-3 pb-4 flex flex-col gap-2.5 bg-white/80 dark:bg-black/80 backdrop-blur-md">
+        <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
           {allDone || !hasResults ? "Send prompt" : "Follow up"}
         </p>
 
@@ -729,7 +745,7 @@ export default function App() {
             placeholder="Type a follow-up or new prompt…"
             rows={2}
             disabled={isSending}
-            className="flex-1 resize-none rounded-sm px-2.5 py-2 text-xs focus:outline-none transition-colors duration-150 disabled:opacity-40"
+            className="flex-1 resize-none rounded-sm px-2.5 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20 transition-colors duration-150 disabled:opacity-40"
             style={{
               background: theme === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
               border: theme === "dark" ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(0,0,0,0.10)",
@@ -741,7 +757,7 @@ export default function App() {
             id="follow-up-send-btn"
             onClick={() => void handleFollowUp()}
             disabled={isSending || !followUp.trim() || followUpTargets.length === 0}
-            className="shrink-0 w-9 self-stretch flex items-center justify-center rounded-sm transition-all duration-150 disabled:opacity-25 hover:opacity-80"
+            className="shrink-0 w-9 self-stretch flex items-center justify-center rounded-sm transition-all duration-150 disabled:opacity-25 hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
             style={{
               background: theme === "dark" ? "#ffffff" : "#000000",
               color: theme === "dark" ? "#000000" : "#ffffff",
@@ -755,7 +771,7 @@ export default function App() {
           </button>
         </div>
 
-        <p className="text-[9px] text-black/20 dark:text-white/20">
+        <p className="text-xs text-black/20 dark:text-white/20">
           Enter to send · Shift+Enter for new line
         </p>
       </footer>

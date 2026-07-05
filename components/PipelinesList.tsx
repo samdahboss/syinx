@@ -92,34 +92,34 @@ export function PipelinesList({ theme }: { theme?: "dark" | "light" }) {
             type="text" 
             value={editingPipeline.name}
             onChange={(e) => setEditingPipeline({...editingPipeline, name: e.target.value})}
-            className="text-2xl font-bold bg-transparent border-b border-black/20 dark:border-white/20 focus:outline-none focus:border-black dark:focus:border-white w-full max-w-sm px-1 py-1"
+            className="text-2xl font-bold bg-transparent border-b border-black/20 dark:border-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20 w-full max-w-sm px-1 py-1"
           />
         </div>
 
         <div className="flex flex-col gap-4 relative pl-4 border-l-2 border-black/10 dark:border-white/10 ml-2">
           {editingPipeline.steps.map((step, index) => (
             <div key={step.id} className="relative bg-black/5 dark:bg-white/5 p-4 rounded-md border border-black/10 dark:border-white/10 group">
-              <div className="absolute -left-[23px] top-4 w-6 h-6 rounded-full bg-white dark:bg-black border-2 border-black/20 dark:border-white/20 flex items-center justify-center text-[10px] font-bold">
+              <div className="absolute -left-[23px] top-4 w-6 h-6 rounded-full bg-white dark:bg-black border-2 border-black/20 dark:border-white/20 flex items-center justify-center text-xs font-bold">
                 {index + 1}
               </div>
               <div className="flex justify-between items-center mb-3">
                 <select
                   value={step.target}
                   onChange={(e) => updateStep(step.id, { target: e.target.value as SiteId })}
-                  className="bg-transparent text-xs font-bold uppercase tracking-wider outline-none cursor-pointer"
+                  className="bg-transparent text-xs font-bold uppercase tracking-wider outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20 rounded-sm"
                 >
                   <option value="chatgpt" className="text-black">ChatGPT</option>
                   <option value="claude" className="text-black">Claude</option>
                   <option value="gemini" className="text-black">Gemini</option>
                 </select>
-                <button onClick={() => removeStep(step.id)} className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity">
+                <button onClick={() => removeStep(step.id)} aria-label="Remove step" className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 rounded-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
                 </button>
               </div>
               <textarea
                 value={step.promptTemplate}
                 onChange={(e) => updateStep(step.id, { promptTemplate: e.target.value })}
-                className="w-full bg-transparent border border-black/10 dark:border-white/10 rounded-sm p-3 text-sm resize-y min-h-[80px] focus:outline-none focus:border-black/30 dark:focus:border-white/30"
+                className="w-full bg-transparent border border-black/10 dark:border-white/10 rounded-sm p-3 text-sm resize-y min-h-[80px] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
                 placeholder="Enter prompt template. Use {{input}} to inject previous output."
               />
             </div>
@@ -128,7 +128,7 @@ export function PipelinesList({ theme }: { theme?: "dark" | "light" }) {
 
         <button 
           onClick={addStep}
-          className="text-xs font-bold uppercase tracking-wider py-2 px-4 border border-dashed border-black/30 dark:border-white/30 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:border-black dark:hover:border-white transition-colors self-start ml-6 rounded-sm"
+          className="text-xs font-bold uppercase tracking-wider py-2 px-4 border border-dashed border-black/30 dark:border-white/30 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:border-black dark:hover:border-white transition-colors self-start ml-6 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
         >
           + Add Step
         </button>
@@ -136,7 +136,7 @@ export function PipelinesList({ theme }: { theme?: "dark" | "light" }) {
         <div className="flex gap-3 mt-4">
           <button 
             onClick={() => void handleSave()}
-            className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-sm hover:opacity-80 transition-opacity"
+            className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-sm hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
           >
             Save Pipeline
           </button>
@@ -159,7 +159,7 @@ export function PipelinesList({ theme }: { theme?: "dark" | "light" }) {
         </p>
         <button
           onClick={handleCreateNew}
-          className="text-xs font-bold uppercase tracking-wider border border-black/20 dark:border-white/20 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-sm"
+          className="text-xs font-bold uppercase tracking-wider border border-black/20 dark:border-white/20 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20"
         >
           + New Pipeline
         </button>
@@ -179,7 +179,7 @@ export function PipelinesList({ theme }: { theme?: "dark" | "light" }) {
                 <div className="flex items-center gap-2 mb-4 flex-wrap">
                   {p.steps.map((s, i) => (
                     <div key={s.id} className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest border border-black/10 dark:border-white/10 px-1.5 py-0.5 rounded-sm bg-black/5 dark:bg-white/5">
+                      <span className="text-xs font-bold uppercase tracking-widest border border-black/10 dark:border-white/10 px-1.5 py-0.5 rounded-sm bg-black/5 dark:bg-white/5">
                         {SITE_LABELS[s.target]}
                       </span>
                       {i < p.steps.length - 1 && (

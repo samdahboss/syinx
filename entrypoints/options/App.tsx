@@ -267,7 +267,7 @@ export default function App() {
           {/* Right side: tabs + theme toggle */}
           <div className="flex items-center gap-6">
             <nav className="flex items-center gap-1">
-              {(["chat", "history", "templates", "settings"] as Tab[]).map((tab) => (
+              {(["chat", "history", "templates", "pipelines", "settings"] as Tab[]).map((tab) => (
                 <button
                   key={tab}
                   id={`tab-${tab}`}

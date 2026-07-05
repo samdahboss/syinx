@@ -32,23 +32,12 @@ export function PromptInput({ value, onChange, onSend, isLoading }: Props) {
         <textarea
           ref={textareaRef}
           id="prompt-input"
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(0,0,0,0.15)",
-            borderRadius: 0,
-            padding: "16px 20px",
-            fontSize: "14px",
-            lineHeight: "1.6",
-            minHeight: "140px",
-            width: "100%",
-            resize: "none",
-            outline: "none",
-          }}
           className="
-            dark:border-white/15
+            bg-transparent border border-black/15 dark:border-white/15 rounded-none py-4 px-5
+            text-sm leading-relaxed min-h-[140px] w-full resize-none
             text-black dark:text-white
             placeholder-black/30 dark:placeholder-white/30
-            focus:border-black dark:focus:border-white
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:focus-visible:ring-white/20
             transition-colors duration-150
           "
           placeholder="Type your prompt… (Ctrl+Enter to send)"
@@ -83,25 +72,14 @@ export function PromptInput({ value, onChange, onSend, isLoading }: Props) {
         id="send-btn"
         onClick={onSend}
         disabled={isLoading || !value.trim()}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          alignSelf: "flex-start",
-          padding: "10px 24px",
-          fontSize: "11px",
-          fontWeight: 700,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          borderRadius: 0,
-          cursor: "pointer",
-          transition: "opacity 0.15s, transform 0.1s",
-        }}
         className="
-          bg-black dark:bg-white
-          text-white dark:text-black
+          inline-flex items-center gap-2 self-start py-2.5 px-6
+          text-xs font-bold tracking-widest uppercase rounded-none cursor-pointer
+          bg-black dark:bg-white text-white dark:text-black
           disabled:opacity-30 disabled:cursor-not-allowed
           hover:opacity-75 active:scale-[0.98]
+          transition-all duration-150
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black dark:focus-visible:ring-white dark:focus-visible:ring-offset-black
         "
       >
         {isLoading ? (
