@@ -12,6 +12,7 @@ import type { PromptHistoryEntry } from "@@/lib/history";
 import { getRecentHistory, removeHistoryEntry, generateId } from "@@/lib/history";
 import type { Settings, PromptTemplate } from "@@/lib/storage";
 import { getSettings, updateSettings, getTemplates } from "@@/lib/storage";
+import { classifyPrompt } from "@@/lib/classifier";
 
 // ─────────────────────────────────────────────
 // Types
@@ -52,6 +53,7 @@ export default function App() {
     defaultTargets: ["chatgpt", "claude", "gemini"],
     autoSubmit: true,
     useNewTabs: false,
+    smartSelect: false,
   });
   const [history, setHistory] = useState<PromptHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +61,8 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
+  const [userManuallySelectedTargets, setUserManuallySelectedTargets] = useState(false);
+  const [autoSelected, setAutoSelected] = useState(false);
   const windowIdRef = useRef<number | undefined>(undefined);
 
   // ── Load persisted state on mount ────────────────────────────────────────
@@ -92,6 +96,25 @@ export default function App() {
     }
     localStorage.setItem("ps-theme", theme);
   }, [theme]);
+
+  // ── Smart Target Auto-Select ─────────────────────────────────────────────
+  useEffect(() => {
+    if (settings.smartSelect && !userManuallySelectedTargets) {
+      const recs = classifyPrompt(prompt);
+      if (recs) {
+        setTargets((prev) => {
+          if (recs.join(",") !== prev.join(",")) {
+            setAutoSelected(true);
+            return recs;
+          }
+          return prev;
+        });
+      } else if (autoSelected) {
+        setAutoSelected(false);
+        setTargets(settings.defaultTargets);
+      }
+    }
+  }, [prompt, settings.smartSelect, userManuallySelectedTargets, settings.defaultTargets, autoSelected]);
 
   // ── Refresh templates when switching to chat tab ─────────────────────────
   useEffect(() => {
@@ -138,6 +161,9 @@ export default function App() {
         isFollowUp: false,
         sessionId,
       });
+      setUserManuallySelectedTargets(false);
+      setAutoSelected(false);
+      setPrompt("");
       await refreshHistory();
     } catch (e) {
       console.error("Failed to send prompt", e);
@@ -297,10 +323,29 @@ export default function App() {
               theme={theme}
             />
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30 mb-4">
-                Send to
-              </p>
-              <SiteToggleList selected={targets} onChange={setTargets} disabled={isLoading} theme={theme} />
+              <div className="flex items-center gap-3 mb-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
+                  Send to
+                </p>
+                {autoSelected && (
+                  <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 animate-in fade-in zoom-in duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    Auto-selected. Click below to override.
+                  </span>
+                )}
+              </div>
+              <SiteToggleList 
+                selected={targets} 
+                onChange={(newTargets) => {
+                  setTargets(newTargets);
+                  setUserManuallySelectedTargets(true);
+                  setAutoSelected(false);
+                }} 
+                disabled={isLoading} 
+                theme={theme} 
+              />
             </div>
           </div>
         )}

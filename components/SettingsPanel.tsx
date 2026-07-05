@@ -78,6 +78,14 @@ export function SettingsPanel({ settings, onUpdate }: Props) {
         onChange={(checked) => { onUpdate({ useNewTabs: checked }); }}
       />
 
+      <SettingRow
+        id="toggle-smartselect"
+        label="Smart Default Targets"
+        description="Automatically select the best AIs based on your prompt (e.g. Coding uses ChatGPT+Claude, Writing uses Claude+Gemini)."
+        checked={settings.smartSelect}
+        onChange={(checked) => { onUpdate({ smartSelect: checked }); }}
+      />
+
       {/* Keyboard shortcuts info block */}
       <div className="pt-8">
         <p className="text-xs font-bold uppercase tracking-widest text-black/30 dark:text-white/30 mb-4">

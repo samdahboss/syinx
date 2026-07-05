@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PromptHistoryEntry } from "@@/lib/history";
 import type { SiteId } from "@@/lib/messaging";
 
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export function HistoryList({ entries, onResend, onDelete }: Props) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   if (entries.length === 0) {
     return (
       <div className="py-20 flex flex-col items-center gap-3">
@@ -31,10 +34,82 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
     );
   }
 
+  const filteredEntries = entries.filter((entry) => {
+    if (!searchQuery.trim()) return true;
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    const content = entry.prompt.toLowerCase();
+    return terms.every((term) => content.includes(term));
+  });
+
+  const ratedEntries = entries.filter((e) => e.winner);
+  const totalRated = ratedEntries.length;
+  
+  let leaderboardHeader = null;
+  if (totalRated > 0) {
+    const wins: Record<SiteId, number> = { chatgpt: 0, claude: 0, gemini: 0 };
+    ratedEntries.forEach(e => { if (e.winner) wins[e.winner]++; });
+    
+    let topAI: SiteId = "chatgpt";
+    let maxWins = -1;
+    (Object.keys(wins) as SiteId[]).forEach((site) => {
+      if (wins[site] > maxWins) {
+        maxWins = wins[site];
+        topAI = site;
+      }
+    });
+
+    const winRate = Math.round((maxWins / totalRated) * 100);
+
+    leaderboardHeader = (
+      <div className="mb-2 p-4 rounded-md border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10">
+        <h3 className="text-sm font-bold text-black dark:text-white mb-3">
+          🏆 {SITE_LABELS[topAI]} is your top AI, winning {winRate}% of the time
+        </h3>
+        <div className="flex gap-6">
+          {(Object.keys(wins) as SiteId[]).map((site) => {
+            const pct = Math.round((wins[site] / totalRated) * 100) || 0;
+            return (
+              <div key={site} className="flex flex-col gap-1.5 w-24">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-black/60 dark:text-white/60">
+                  <span>{SITE_LABELS[site]}</span>
+                  <span>{pct}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ul className="flex flex-col divide-y divide-black/8 dark:divide-white/8">
-      {entries.map((entry, i) => (
-        <li
+    <div className="flex flex-col gap-4">
+      {leaderboardHeader}
+      <div className="relative">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search prompt history..."
+          className="w-full bg-transparent border border-black/15 dark:border-white/15 pl-10 pr-4 py-2.5 text-sm focus:border-black dark:focus:border-white outline-none transition-colors text-black dark:text-white placeholder-black/30 dark:placeholder-white/30"
+        />
+      </div>
+
+      {filteredEntries.length === 0 ? (
+        <div className="py-10 text-center text-sm opacity-50 italic">
+          No results found for "{searchQuery}"
+        </div>
+      ) : (
+        <ul className="flex flex-col divide-y divide-black/8 dark:divide-white/8">
+          {filteredEntries.map((entry, i) => (
+            <li
           key={entry.id}
           className="group flex items-start gap-4 py-5 hover:bg-black/2 dark:hover:bg-white/2 transition-colors duration-100 -mx-2 px-2"
         >
@@ -57,8 +132,17 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
                 {entry.targets.map((t) => (
                   <span
                     key={t}
-                    className="text-[10px] font-bold uppercase tracking-wider text-black/40 dark:text-white/40 border border-black/10 dark:border-white/10 px-1.5 py-0.5"
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-1.5 py-0.5 ${
+                      entry.winner === t 
+                        ? "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10" 
+                        : "text-black/40 dark:text-white/40 border-black/10 dark:border-white/10"
+                    }`}
                   >
+                    {entry.winner === t && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-2.5 h-2.5">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    )}
                     {SITE_LABELS[t]}
                   </span>
                 ))}
@@ -87,7 +171,9 @@ export function HistoryList({ entries, onResend, onDelete }: Props) {
           </div>
         </li>
       ))}
-    </ul>
+        </ul>
+      )}
+    </div>
   );
 }
 

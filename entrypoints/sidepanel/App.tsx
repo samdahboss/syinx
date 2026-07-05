@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { SiteId, SiteResult, ExtensionMessage } from "@@/lib/messaging";
 import { sendToBackground } from "@@/lib/messaging";
-import { getSettings } from "@@/lib/storage";
+import { getSettings, setWinnerForEntry } from "@@/lib/storage";
 import { generateId } from "@@/lib/history";
 import { renderMarkdown } from "@@/lib/markdown";
 
@@ -16,6 +16,7 @@ interface Session {
   prompt: string;
   results: (SiteResult & { response?: string })[];
   startedAt: Date;
+  winner?: SiteId;
 }
 
 // ─────────────────────────────────────────────
@@ -423,6 +424,14 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [sessions]);
 
+  // ── Mark a response as best ──────────────────────────────────────────────
+  async function handleMarkBest(sessionId: string, siteId: SiteId) {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, winner: siteId } : s))
+    );
+    await setWinnerForEntry(sessionId, siteId);
+  }
+
   // ── Retry a single failed site ───────────────────────────────────────────
   async function handleRetry(siteId: SiteId) {
     const lastSession = sessions[sessions.length - 1];
@@ -590,11 +599,14 @@ export default function App() {
                       {session.results.map((r) => {
                         const meta = SITE_META[r.siteId];
                         const isLast = si === sessions.length - 1;
+                        const isWinner = session.winner === r.siteId;
                         return (
                           <div
                             key={r.siteId}
                             className={`w-[85%] shrink-0 snap-center flex flex-col gap-1.5 px-3 py-2.5 rounded-md border transition-all duration-200 ${
-                              r.status === "error"
+                              isWinner
+                                ? "bg-amber-500/10 dark:bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                                : r.status === "error"
                                 ? "bg-red-500/3 dark:bg-red-500/5 border-red-500/15 dark:border-red-500/20"
                                 : r.status === "success"
                                 ? "bg-emerald-500/3 dark:bg-emerald-500/5 border-emerald-500/10 dark:border-emerald-500/15"
@@ -613,7 +625,24 @@ export default function App() {
                                 </span>
                                 <span className="text-xs font-semibold tracking-wide">{meta.label}</span>
                               </div>
-                              <StatusBadge status={r.status} />
+                              <div className="flex items-center gap-2">
+                                {r.status === "success" && (
+                                  <button
+                                    onClick={() => void handleMarkBest(session.id, r.siteId)}
+                                    title={isWinner ? "Best answer" : "Mark as best answer"}
+                                    className={`w-6 h-6 flex items-center justify-center rounded-full transition-all duration-200 ${
+                                      isWinner
+                                        ? "text-amber-500 bg-amber-500/10"
+                                        : "text-black/20 dark:text-white/20 hover:text-amber-500 hover:bg-amber-500/10"
+                                    }`}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={isWinner ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <StatusBadge status={r.status} />
+                              </div>
                             </div>
 
                             {/* Error + Retry */}

@@ -30,12 +30,14 @@ export interface PromptHistoryEntry {
   targets: SiteId[];
   timestamp: number; // Unix ms
   responses?: CapturedResponse[];
+  winner?: SiteId;
 }
 
 export interface Settings {
   defaultTargets: SiteId[];
   autoSubmit: boolean;
   useNewTabs: boolean;
+  smartSelect: boolean;
 }
 
 export interface PromptTemplate {
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultTargets: ["chatgpt", "claude", "gemini"],
   autoSubmit: true,
   useNewTabs: false,
+  smartSelect: false,
 };
 
 export const HISTORY_CAP = 50;
@@ -130,6 +133,17 @@ export async function addResponseToEntry(
   if (idx === -1) return; // Session may have been evicted; silently ignore.
   const entry = entries[idx];
   entry.responses = [...(entry.responses ?? []), response];
+  await setHistory(entries);
+}
+
+/**
+ * Sets a winner for a specific history entry.
+ */
+export async function setWinnerForEntry(sessionId: string, winner: SiteId): Promise<void> {
+  const entries = await getHistory();
+  const idx = entries.findIndex((e) => e.id === sessionId);
+  if (idx === -1) return;
+  entries[idx].winner = winner;
   await setHistory(entries);
 }
 
